@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>FM BIG 6 - Suivi d'Avancement & Classements</title>
+  
+  <!-- Favicon avec l'une des icônes du jeu -->
+  <link rel="icon" type="image/png" href="./Tickets FM.png">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            },
+            game: {
+              bg: '#090d16',
+              card: '#0f172a',
+              cardHover: '#1e293b',
+              accent: '#10b981',
+              gold: '#f59e0b',
+              silver: '#94a3b8',
+              bronze: '#d97706'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Supabase JS Client v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Style CSS personnalisé -->
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body class="bg-ambient min-h-screen flex flex-col text-slate-100 selection:bg-brand-500 selection:text-white">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-3"></div>
+
+  <!-- Barre supérieure de navigation & En-tête -->
+  <header class="sticky top-0 z-40 backdrop-blur-xl bg-slate-950/80 border-b border-slate-800/80 shadow-lg">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      
+      <!-- Logo et Titre -->
+      <div class="flex items-center gap-3">
+        <div class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-500 p-0.5 shadow-md shadow-indigo-500/20">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center overflow-hidden">
+            <img src="./Tickets FM.png" alt="Logo FM" class="w-7 h-7 object-contain drop-shadow">
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-black tracking-tight font-heading text-white">FM BIG 6</h1>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">LOM</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Suivi d'avancement & Classements de Guilde</p>
+        </div>
+      </div>
+
+      <!-- Statut Admin (si connecté) & Bouton Rafraîchir -->
+      <div class="flex items-center gap-2">
+        <div id="admin-badge" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span class="hidden md:inline">Admin</span>
+          <button id="admin-logout-btn" title="Se déconnecter" class="hover:text-white transition ml-1 text-slate-400 hover:text-red-400">
+            <i data-lucide="log-out" class="w-3 h-3"></i>
+          </button>
+        </div>
+
+        <button id="btn-refresh-data" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700/60 transition active:scale-95 flex items-center gap-1.5 text-xs font-medium" title="Actualiser les données">
+          <i data-lucide="rotate-cw" class="w-4 h-4 refresh-icon"></i>
+          <span class="hidden sm:inline">Actualiser</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sélecteur d'onglets principal (Mobile-first) -->
+    <div class="max-w-4xl mx-auto px-4 pb-2">
+      <nav class="grid grid-cols-2 p-1 bg-slate-900/90 rounded-2xl border border-slate-800" role="tablist">
+        <button id="tab-btn-inscription" class="main-tab-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-sm transition-all duration-200 bg-brand-600 text-white shadow-md shadow-brand-600/30" role="tab" aria-selected="true">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>Inscription</span>
+        </button>
+        <button id="tab-btn-resultat" class="main-tab-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-sm transition-all duration-200 text-slate-400 hover:text-slate-200" role="tab" aria-selected="false">
+          <i data-lucide="trophy" class="w-4 h-4"></i>
+          <span>Résultats</span>
+          <span id="header-players-count" class="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">0</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Contenu Principal -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-4 md:py-6">
+    
+    <!-- ================================================================= -->
+    <!-- ONGLET 1 : INSCRIPTION (WIZARD PAR ÉTAPES) -->
+    <!-- ================================================================= -->
+    <section id="view-inscription" class="space-y-4">
+      
+      <!-- Barre de progression des étapes -->
+      <div class="glass-card rounded-2xl p-3 md:p-4">
+        <div class="flex items-center justify-between text-xs font-medium text-slate-400 mb-2">
+          <span id="step-indicator-text">Étape 1 sur 5 : Pseudo</span>
+          <span id="step-percentage" class="text-brand-400 font-bold">20%</span>
+        </div>
+        <div class="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
+          <div id="progress-bar-fill" class="bg-gradient-to-r from-brand-500 to-emerald-400 h-full rounded-full transition-all duration-300 w-1/5"></div>
+        </div>
+
+        <!-- Puces des étapes -->
+        <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-800/60 px-1">
+          <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-brand-400" data-step="0">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center bg-brand-500 text-white shadow-sm shadow-brand-500/40 text-xs">1</span>
+            <span class="hidden sm:inline">Pseudo</span>
+          </button>
+          <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
+          <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="1">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">2</span>
+            <span class="hidden sm:inline">Compétences</span>
+          </button>
+          <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
+          <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="2">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">3</span>
+            <span class="hidden sm:inline">Œufs</span>
+          </button>
+          <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
+          <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="3">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">4</span>
+            <span class="hidden sm:inline">Monture</span>
+          </button>
+          <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
+          <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="4">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">5</span>
+            <span class="hidden sm:inline">Forge</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulaire Wizard -->
+      <form id="inscription-form" class="space-y-4" onsubmit="return false;">
+        
+        <!-- ================= ÉTAPE 0 : PSEUDO ================= -->
+        <div id="step-panel-0" class="step-panel step-container glass-card rounded-3xl p-5 md:p-8 space-y-6">
+          <div class="text-center space-y-2">
+            <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-1">
+              <i data-lucide="user" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-2xl font-black font-heading text-white">Identité du Joueur</h2>
+            <p class="text-sm text-slate-400 max-w-sm mx-auto">
+              Renseignez votre pseudo en jeu. Si vous êtes déjà inscrit, vos données précédentes seront chargées automatiquement !
+            </p>
+          </div>
+
+          <div class="max-w-md mx-auto space-y-3">
+            <label for="input-pseudo" class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+              Votre Pseudo en jeu <span class="text-red-400">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                <i data-lucide="at-sign" class="w-5 h-5"></i>
+              </div>
+              <input type="text" id="input-pseudo" required maxlength="30" placeholder="Ex: Champignon_X"
+                class="w-full pl-11 pr-10 py-3.5 bg-slate-900/90 border border-slate-700/80 rounded-2xl text-white placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-base">
+              <div id="pseudo-check-spinner" class="absolute inset-y-0 right-0 pr-3.5 flex items-center hidden text-slate-400">
+                <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+              </div>
+            </div>
+
+            <!-- Message d'information dynamique si joueur déjà trouvé -->
+            <div id="pseudo-status-msg" class="hidden p-3 rounded-xl text-xs flex items-center gap-2"></div>
+          </div>
+
+          <!-- Navigation Étape 0 -->
+          <div class="flex justify-end max-w-md mx-auto pt-2">
+            <button type="button" id="btn-next-step-0" class="w-full sm:w-auto px-8 py-3.5 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-95 text-base">
+              <span>Suivant</span>
+              <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= ÉTAPE 1 : COMPÉTENCES ================= -->
+        <div id="step-panel-1" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+          <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
+            <div class="w-14 h-14 rounded-2xl bg-blue-950/80 border border-blue-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/10">
+              <img src="./Tickets FM.png" alt="Tickets FM" class="w-full h-full object-contain">
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Catégorie 1</span>
+              </div>
+              <h2 class="text-xl md:text-2xl font-black font-heading text-white">Tickets de Compétences</h2>
+              <p class="text-xs text-slate-400">Renseignez vos ressources et niveaux d'ascension de compétences</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- 1. Nombre de tickets (0 à 500 000) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-skills-tickets" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="ticket" class="w-4 h-4 text-emerald-400"></i>
+                  Nombre de tickets
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 500.000</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-skills-tickets" min="0" max="500000" step="1" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+
+              <input type="range" id="range-skills-tickets" min="0" max="500000" step="500" value="0" class="w-full">
+              
+              <!-- Puces de raccourcis rapides -->
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="5000">+5k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="25000">+25k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="100000">+100k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-val="500000">Max (500k)</button>
+              </div>
+            </div>
+
+            <!-- 2. Niveau d'ascension (0 à 3) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                  Niveau d'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 3</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2">
+                <button type="button" class="pill-btn active py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="skills-ascension" data-val="0">0</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="skills-ascension" data-val="1">1</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="skills-ascension" data-val="2">2</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="skills-ascension" data-val="3">3</button>
+              </div>
+              <input type="hidden" id="input-skills-ascension" value="0">
+            </div>
+
+            <!-- 3. Niveau atteint dans l'ascension (0 à 100) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-skills-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
+                  Niveau atteint dans l'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 100</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="number" id="input-skills-ascension-level" min="0" max="100" step="1" value="0"
+                  class="w-28 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-center text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <input type="range" id="range-skills-ascension-level" min="0" max="100" step="1" value="0" class="w-full">
+              </div>
+            </div>
+
+            <!-- 4. Niveau de technologie débloqué (0 à 5) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
+                  Niveau de technologie débloqué
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 5</span>
+              </div>
+              <div class="grid grid-cols-6 gap-1.5">
+                <button type="button" class="pill-btn active py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="skills-tech" data-val="0">0</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="skills-tech" data-val="1">1</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="skills-tech" data-val="2">2</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="skills-tech" data-val="3">3</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="skills-tech" data-val="4">4</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="skills-tech" data-val="5">5</button>
+              </div>
+              <input type="hidden" id="input-skills-tech-level" value="0">
+            </div>
+          </div>
+
+          <!-- Navigation Étape 1 -->
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="0">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Précédent</span>
+            </button>
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="2">
+              <span>Suivant</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= ÉTAPE 2 : ŒUFS ================= -->
+        <div id="step-panel-2" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+          <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
+            <div class="w-14 h-14 rounded-2xl bg-amber-950/80 border border-amber-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
+              <img src="./oeufs FM.png" alt="oeufs FM" class="w-full h-full object-contain">
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Catégorie 2</span>
+              </div>
+              <h2 class="text-xl md:text-2xl font-black font-heading text-white">Œufs de Compagnons</h2>
+              <p class="text-xs text-slate-400">Renseignez vos ressources et niveaux d'ascension d'œufs</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- 1. Nombre d'œufs (0 à 200 000) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-eggs-count" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="egg" class="w-4 h-4 text-amber-400"></i>
+                  Nombre d'œufs
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 200.000</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-eggs-count" min="0" max="200000" step="1" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+
+              <input type="range" id="range-eggs-count" min="0" max="200000" step="200" value="0" class="w-full">
+              
+              <!-- Puces rapides -->
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="2000">+2k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="10000">+10k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="50000">+50k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-val="200000">Max (200k)</button>
+              </div>
+            </div>
+
+            <!-- 2. Niveau d'ascension (0 à 3) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                  Niveau d'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 3</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2">
+                <button type="button" class="pill-btn active py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="eggs-ascension" data-val="0">0</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="eggs-ascension" data-val="1">1</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="eggs-ascension" data-val="2">2</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="eggs-ascension" data-val="3">3</button>
+              </div>
+              <input type="hidden" id="input-eggs-ascension" value="0">
+            </div>
+
+            <!-- 3. Niveau atteint dans l'ascension (0 à 100) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-eggs-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
+                  Niveau atteint dans l'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 100</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="number" id="input-eggs-ascension-level" min="0" max="100" step="1" value="0"
+                  class="w-28 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-center text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <input type="range" id="range-eggs-ascension-level" min="0" max="100" step="1" value="0" class="w-full">
+              </div>
+            </div>
+
+            <!-- 4. Niveau de technologie débloqué (0 à 5) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
+                  Niveau de technologie débloqué
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 5</span>
+              </div>
+              <div class="grid grid-cols-6 gap-1.5">
+                <button type="button" class="pill-btn active py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="eggs-tech" data-val="0">0</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="eggs-tech" data-val="1">1</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="eggs-tech" data-val="2">2</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="eggs-tech" data-val="3">3</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="eggs-tech" data-val="4">4</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="eggs-tech" data-val="5">5</button>
+              </div>
+              <input type="hidden" id="input-eggs-tech-level" value="0">
+            </div>
+          </div>
+
+          <!-- Navigation Étape 2 -->
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="1">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Précédent</span>
+            </button>
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="3">
+              <span>Suivant</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= ÉTAPE 3 : MONTURE ================= -->
+        <div id="step-panel-3" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+          <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
+            <div class="w-14 h-14 rounded-2xl bg-cyan-950/80 border border-cyan-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/10">
+              <img src="./Monture FM.png" alt="Monture FM" class="w-full h-full object-contain">
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Catégorie 3</span>
+              </div>
+              <h2 class="text-xl md:text-2xl font-black font-heading text-white">Clés de Monture</h2>
+              <p class="text-xs text-slate-400">Renseignez vos ressources et niveaux d'ascension de monture</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- 1. Nombre de clés (0 à 200 000) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-mount-keys" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="key" class="w-4 h-4 text-cyan-400"></i>
+                  Nombre de clés
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 200.000</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-mount-keys" min="0" max="200000" step="1" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+
+              <input type="range" id="range-mount-keys" min="0" max="200000" step="200" value="0" class="w-full">
+              
+              <!-- Puces rapides -->
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="2000">+2k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="10000">+10k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="50000">+50k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-val="200000">Max (200k)</button>
+              </div>
+            </div>
+
+            <!-- 2. Niveau d'ascension (0 à 3) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                  Niveau d'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 3</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2">
+                <button type="button" class="pill-btn active py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="mount-ascension" data-val="0">0</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="mount-ascension" data-val="1">1</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="mount-ascension" data-val="2">2</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="mount-ascension" data-val="3">3</button>
+              </div>
+              <input type="hidden" id="input-mount-ascension" value="0">
+            </div>
+
+            <!-- 3. Niveau atteint dans l'ascension (0 à 100) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-mount-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
+                  Niveau atteint dans l'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 100</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="number" id="input-mount-ascension-level" min="0" max="100" step="1" value="0"
+                  class="w-28 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-center text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <input type="range" id="range-mount-ascension-level" min="0" max="100" step="1" value="0" class="w-full">
+              </div>
+            </div>
+
+            <!-- 4. Niveau de technologie débloqué (0 à 5) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
+                  Niveau de technologie débloqué
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 5</span>
+              </div>
+              <div class="grid grid-cols-6 gap-1.5">
+                <button type="button" class="pill-btn active py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="0">0</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="1">1</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="2">2</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="3">3</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="4">4</button>
+                <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="5">5</button>
+              </div>
+              <input type="hidden" id="input-mount-tech-level" value="0">
+            </div>
+          </div>
+
+          <!-- Navigation Étape 3 -->
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="2">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Précédent</span>
+            </button>
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="4">
+              <span>Suivant</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= ÉTAPE 4 : FORGE ================= -->
+        <div id="step-panel-4" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+          <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
+            <div class="w-14 h-14 rounded-2xl bg-orange-950/80 border border-orange-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/10">
+              <img src="./Forge FM.png" alt="Forge FM" class="w-full h-full object-contain">
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-orange-500/20 text-orange-300 border border-orange-500/30">Catégorie 4 (Finale)</span>
+              </div>
+              <h2 class="text-xl md:text-2xl font-black font-heading text-white">Marteaux de Forge</h2>
+              <p class="text-xs text-slate-400">Dernière étape ! Renseignez vos marteaux et niveaux de forge</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- 1. Nombre de marteaux (0 à 500 000) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-forge-hammers" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="hammer" class="w-4 h-4 text-orange-400"></i>
+                  Nombre de marteaux
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 500.000</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-forge-hammers" min="0" max="500000" step="1" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+
+              <input type="range" id="range-forge-hammers" min="0" max="500000" step="500" value="0" class="w-full">
+              
+              <!-- Puces rapides -->
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="forge-hammers" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="forge-hammers" data-add="5000">+5k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="forge-hammers" data-add="25000">+25k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="forge-hammers" data-add="100000">+100k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="forge-hammers" data-val="500000">Max (500k)</button>
+              </div>
+            </div>
+
+            <!-- 2. Niveau d'ascension (0 à 3) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                  Niveau d'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 3</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2">
+                <button type="button" class="pill-btn active py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="forge-ascension" data-val="0">0</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="forge-ascension" data-val="1">1</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="forge-ascension" data-val="2">2</button>
+                <button type="button" class="pill-btn py-3 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex flex-col items-center" data-group="forge-ascension" data-val="3">3</button>
+              </div>
+              <input type="hidden" id="input-forge-ascension" value="0">
+            </div>
+
+            <!-- 3. Niveau atteint dans l'ascension (0 à 35) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-forge-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
+                  Niveau atteint dans l'ascension
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 35</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="number" id="input-forge-ascension-level" min="0" max="35" step="1" value="0"
+                  class="w-28 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-center text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <input type="range" id="range-forge-ascension-level" min="0" max="35" step="1" value="0" class="w-full">
+              </div>
+            </div>
+
+            <!-- 4. Technologie Forge (Optionnelle, par défaut 0) -->
+            <input type="hidden" id="input-forge-tech-level" value="0">
+          </div>
+
+          <!-- Navigation Étape 4 (Validation Finale) -->
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <button type="button" class="btn-prev-step px-5 py-3.5 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="3">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Précédent</span>
+            </button>
+            <button type="button" id="btn-submit-inscription" class="px-8 py-3.5 rounded-2xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition active:scale-95 text-base">
+              <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+              <span>Terminer</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= ÉCRAN DE CONFIRMATION / SUCCÈS ================= -->
+        <div id="step-panel-success" class="step-panel step-container hidden glass-card rounded-3xl p-6 md:p-10 text-center space-y-6">
+          <div class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/40 mx-auto flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/20">
+            <i data-lucide="check" class="w-10 h-10"></i>
+          </div>
+
+          <div class="space-y-2">
+            <h2 class="text-2xl md:text-3xl font-black font-heading text-white">Données Enregistrées !</h2>
+            <p id="success-summary-pseudo" class="text-base text-slate-300">
+              Vos informations ont été transmises avec succès à la base de données.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs text-slate-400 max-w-sm mx-auto space-y-1">
+            <p>✅ Mise à jour instantanée des classements</p>
+            <p>✅ Votre pseudo est conservé pour vos futures modifications</p>
+          </div>
+
+          <div class="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+            <button type="button" id="btn-success-view-rankings" class="px-6 py-3.5 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition">
+              <i data-lucide="trophy" class="w-5 h-5"></i>
+              <span>Voir les classements</span>
+            </button>
+            <button type="button" id="btn-success-new-entry" class="px-6 py-3.5 rounded-2xl font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center gap-2 transition">
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+              <span>Modifier mes scores</span>
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- ONGLET 2 : RÉSULTATS (CLASSEMENTS TOP 50 DYNAMIQUES) -->
+    <!-- ================================================================= -->
+    <section id="view-resultat" class="hidden space-y-5">
+      
+      <!-- Barre d'outils des résultats : Recherche & Sous-onglets -->
+      <div class="glass-card rounded-2xl p-3 md:p-4 space-y-3">
+        
+        <!-- Recherche de pseudo -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </div>
+          <input type="text" id="ranking-search-input" placeholder="Rechercher un joueur par son pseudo..."
+            class="w-full pl-9 pr-8 py-2 bg-slate-900/90 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <button id="clear-search-btn" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-500 hover:text-white hidden">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Sous-onglets de classements (Général | Avancement | Ordre d'Ascension) -->
+        <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-800/80">
+          <button class="ranking-subtab-btn active px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-brand-600 text-white shadow-md shadow-brand-600/30" data-view="general">
+            <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-300"></i>
+            <span>Général</span>
+          </button>
+
+          <button class="ranking-subtab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700" data-view="avancement">
+            <i data-lucide="chevrons-up" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Avancement</span>
+          </button>
+
+          <button class="ranking-subtab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700" data-view="ordre">
+            <i data-lucide="rocket" class="w-3.5 h-3.5 text-purple-400"></i>
+            <span>Ordre d'Ascension</span>
+          </button>
+        </div>
+
+        <!-- Filtre de catégorie secondaire (pour Avancement et Ordre) -->
+        <div id="category-selector-bar" class="hidden flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-800/50">
+          <!-- Dynamiquement alimenté selon la vue -->
+        </div>
+      </div>
+
+      <!-- Description et critères du classement actif -->
+      <div id="ranking-criteria-badge" class="px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs text-slate-400 flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+        <span id="ranking-criteria-text">Critères : 1) Ascension 2) Technologie 3) Niveau Ascension 4) Ressources</span>
+      </div>
+
+      <!-- Podiums Top 3 (visuel attractif) -->
+      <div id="ranking-podium-container" class="grid grid-cols-3 gap-2 md:gap-4 pt-2">
+        <!-- 2ème Place (Argent) -->
+        <div id="podium-item-2" class="order-1 podium-card podium-2 rounded-2xl p-3 md:p-4 border flex flex-col items-center justify-end text-center min-h-[140px]">
+          <div class="w-8 h-8 rounded-full bg-slate-400/20 text-slate-300 font-black text-sm flex items-center justify-center border border-slate-400/40 mb-1">2</div>
+          <p class="font-bold text-xs md:text-sm text-white truncate max-w-full" id="podium-name-2">-</p>
+          <p class="text-[11px] text-slate-400 mt-0.5" id="podium-score-2">-</p>
+        </div>
+
+        <!-- 1ère Place (Or) -->
+        <div id="podium-item-1" class="order-2 podium-card podium-1 rounded-2xl p-3 md:p-4 border flex flex-col items-center justify-end text-center min-h-[165px] -translate-y-2 shadow-lg shadow-amber-500/10">
+          <i data-lucide="crown" class="w-6 h-6 text-amber-400 mb-1"></i>
+          <div class="w-9 h-9 rounded-full bg-amber-500/20 text-amber-300 font-black text-sm flex items-center justify-center border border-amber-500/40 mb-1">1</div>
+          <p class="font-black text-sm md:text-base text-amber-200 truncate max-w-full" id="podium-name-1">-</p>
+          <p class="text-xs font-semibold text-amber-400 mt-0.5" id="podium-score-1">-</p>
+        </div>
+
+        <!-- 3ème Place (Bronze) -->
+        <div id="podium-item-3" class="order-3 podium-card podium-3 rounded-2xl p-3 md:p-4 border flex flex-col items-center justify-end text-center min-h-[125px]">
+          <div class="w-8 h-8 rounded-full bg-amber-700/20 text-amber-500 font-black text-sm flex items-center justify-center border border-amber-700/40 mb-1">3</div>
+          <p class="font-bold text-xs md:text-sm text-white truncate max-w-full" id="podium-name-3">-</p>
+          <p class="text-[11px] text-slate-400 mt-0.5" id="podium-score-3">-</p>
+        </div>
+      </div>
+
+      <!-- Liste complète des joueurs (Top 1 à 50) -->
+      <div class="glass-card rounded-2xl overflow-hidden border border-slate-800">
+        <div class="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <span>Classement (Top 50)</span>
+          <span id="ranking-list-count">0 joueurs</span>
+        </div>
+
+        <!-- Conteneur des lignes de classement -->
+        <div id="ranking-rows-container" class="divide-y divide-slate-800/60">
+          <div class="p-8 text-center text-slate-500 space-y-2">
+            <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto text-indigo-400"></i>
+            <p class="text-sm">Chargement des données en direct...</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ================================================================= -->
+  <!-- BOUTON SECRET ADMIN (EN BAS À DROITE) -->
+  <!-- ================================================================= -->
+  <div class="fixed bottom-4 right-4 z-50">
+    <button id="secret-admin-trigger-btn" title="Accès administrateur" class="secret-admin-trigger w-9 h-9 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-amber-400 flex items-center justify-center shadow-lg backdrop-blur">
+      <i data-lucide="lock" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE CONNEXION & GESTION ADMIN -->
+  <!-- ================================================================= -->
+  <div id="admin-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900/95 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl">
+      
+      <!-- En-tête de la modale -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+            <i data-lucide="shield" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-lg text-white font-heading">Portail Administrateur</h3>
+            <p class="text-xs text-slate-400">Gestion de la guilde & modération</p>
+          </div>
+        </div>
+        <button id="btn-close-admin-modal" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Vue Connexion (si non connecté) -->
+      <div id="admin-login-view" class="space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label for="admin-email-input" class="block text-xs font-bold uppercase text-slate-300 mb-1">Identifiant</label>
+            <input type="email" id="admin-email-input" value="admin@admin.fr" readonly
+              class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 font-mono text-sm cursor-not-allowed">
+          </div>
+
+          <div>
+            <label for="admin-password-input" class="block text-xs font-bold uppercase text-slate-300 mb-1">Mot de passe</label>
+            <input type="password" id="admin-password-input" placeholder="Mot de passe administrateur"
+              class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <button id="btn-submit-admin-login" class="w-full py-3 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition active:scale-95">
+          <i data-lucide="key" class="w-4 h-4"></i>
+          <span>Se connecter</span>
+        </button>
+
+        <p class="text-[11px] text-slate-500 text-center">
+          Authentification gérée via Supabase Auth pour l'email admin@admin.fr
+        </p>
+      </div>
+
+      <!-- Vue Connecté (si session active) -->
+      <div id="admin-panel-view" class="hidden space-y-4">
+        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs text-amber-300 font-semibold">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+            <span>Connecté en tant qu'administrateur</span>
+          </div>
+          <button id="btn-admin-logout" class="text-xs text-red-400 hover:text-red-300 font-medium">Déconnexion</button>
+        </div>
+
+        <div class="space-y-2 text-xs text-slate-300">
+          <p class="font-bold uppercase tracking-wider text-slate-400">Actions Administrateur :</p>
+          <ul class="space-y-1.5 list-disc list-inside text-slate-400">
+            <li>Les boutons rouges de suppression <i data-lucide="trash-2" class="w-3.5 h-3.5 inline text-red-400"></i> sont désormais actifs dans tous les tableaux.</li>
+            <li>Vous pouvez supprimer un joueur ayant démissionné ou corriger une erreur.</li>
+          </ul>
+        </div>
+
+        <button id="btn-close-admin-panel" class="w-full py-2.5 rounded-xl font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm transition">
+          Fermer la fenêtre
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modale de Confirmation de Suppression -->
+  <div id="delete-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-red-500/30 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+      <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 mx-auto flex items-center justify-center">
+        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-lg text-white">Supprimer ce joueur ?</h3>
+        <p class="text-xs text-slate-400 mt-1">
+          Confirmez-vous la suppression définitive du joueur <span id="delete-target-pseudo" class="font-bold text-red-300"></span> ?
+        </p>
+      </div>
+      <div class="flex items-center gap-2 pt-2">
+        <button id="btn-cancel-delete" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
+          Annuler
+        </button>
+        <button id="btn-confirm-delete" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-md shadow-red-600/30 transition">
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pied de page -->
+  <footer class="mt-auto py-4 border-t border-slate-900 text-center text-xs text-slate-600">
+    <p>FM BIG 6 &bull; Développé pour la communauté &bull; Hébergé sur GitHub Pages</p>
+  </footer>
+
+  <!-- Scripts applicatifs en module ES6 -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
