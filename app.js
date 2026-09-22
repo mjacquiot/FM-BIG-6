@@ -56,14 +56,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await getAdminSession();
     if (session && session.user && session.user.email === 'admin@admin.fr') {
       setAdminState(true, session);
+    } else {
+      setAdminState(false, null);
     }
   } catch (err) {
     console.warn("Vérification session:", err);
+    setAdminState(false, null);
   }
 
   // Écouteur auth Supabase
   onAuthStateChange((event, session) => {
-    const isUserAdmin = session && session.user && session.user.email === 'admin@admin.fr';
+    const isUserAdmin = Boolean(session && session.user && session.user.email === 'admin@admin.fr');
     setAdminState(isUserAdmin, session);
   });
 
@@ -654,7 +657,7 @@ function updateCriteriaDescription() {
   } else if (state.rankingView === 'avancement') {
     criteriaText.innerHTML = `<strong>Classement d'Avancement :</strong> 1) Ascension &rarr; 2) Technologie &rarr; 3) Niveau Ascension &rarr; 4) Ressources`;
   } else if (state.rankingView === 'ordre') {
-    criteriaText.innerHTML = `<strong>Ordre d'Ascension (Rush) :</strong> 1) Ressources &rarr; 2) Technologie &rarr; 3) Niveau Ascension`;
+    criteriaText.innerHTML = `<strong>Ordre d'Ascension (Rush) :</strong> 1) Ressources &rarr; 2) Technologie &rarr; 3) Ascension. Les 6 premiers forment le <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/30">BIG 6</span>, suivis de l'ordre de passage (Priorité 1, Priorité 2, ...).`;
   }
 }
 
@@ -748,6 +751,37 @@ function renderPlayerRow(player) {
   } else if (player.rank === 3) {
     rankClass = "bg-amber-700/20 text-amber-500 border border-amber-700/40";
     rankIcon = "🥉";
+  } else if (state.rankingView === 'ordre' && player.rank <= 6) {
+    rankClass = "bg-gradient-to-br from-amber-500/25 to-purple-500/25 text-amber-300 border border-amber-500/50 shadow-sm";
+  }
+
+  // Tags et habillage spécifiques selon la vue
+  let statusBadgeHtml = '';
+  let rowHighlightClass = 'hover:bg-slate-800/40';
+
+  if (state.rankingView === 'ordre') {
+    if (player.rank <= 6) {
+      // Les 6 premiers sont les BIG 6
+      statusBadgeHtml = `
+        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-black bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-purple-500/25 text-amber-300 border border-amber-500/40 shadow-sm inline-flex items-center gap-1">
+          <i data-lucide="crown" class="w-3 h-3 text-amber-400"></i>
+          BIG 6
+        </span>
+      `;
+      rowHighlightClass = 'bg-gradient-to-r from-amber-950/20 via-slate-900/60 to-purple-950/10 border-l-4 border-amber-400 hover:bg-slate-800/60';
+    } else {
+      // Les joueurs suivants ont le tag de priorité (7e = Priorité 1, 8e = Priorité 2, etc.)
+      const priorityNum = player.rank - 6;
+      statusBadgeHtml = `
+        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 inline-flex items-center gap-1 shadow-sm">
+          <i data-lucide="arrow-up-circle" class="w-3 h-3 text-indigo-400"></i>
+          Priorité ${priorityNum}
+        </span>
+      `;
+      rowHighlightClass = 'hover:bg-slate-800/40';
+    }
+  } else if (isPodium) {
+    rowHighlightClass = 'bg-slate-900/40 hover:bg-slate-800/40';
   }
 
   // Contenu spécifique selon le type de classement
@@ -822,14 +856,15 @@ function renderPlayerRow(player) {
   ` : '';
 
   return `
-    <div class="p-3 md:p-4 hover:bg-slate-800/40 transition flex items-center justify-between gap-3 ${isPodium ? 'bg-slate-900/40' : ''}">
+    <div class="p-3 md:p-4 transition flex items-center justify-between gap-3 ${rowHighlightClass}">
       <div class="flex items-center gap-3 min-w-0">
         <div class="rank-badge ${rankClass} shrink-0 text-xs font-black">
           ${rankIcon ? rankIcon : '#' + player.rank}
         </div>
         <div class="min-w-0">
-          <p class="font-black text-sm md:text-base text-white truncate flex items-center gap-2">
+          <p class="font-black text-sm md:text-base text-white truncate flex flex-wrap items-center gap-2">
             <span>${escapeHtml(player.pseudo)}</span>
+            ${statusBadgeHtml}
             ${state.rankingView === 'general' ? `
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-extrabold border border-indigo-500/30">
                 Score: ${player.totalScore}
@@ -874,6 +909,14 @@ function setPodiumData(rank, player) {
 
   if (state.rankingView === 'general') {
     scoreEl.textContent = `Score: ${player.totalScore} pts`;
+  } else if (state.rankingView === 'ordre') {
+    let res = 0;
+    if (state.rankingCategory === 'skills') {
+      res = player.skills_tickets;
+    } else if (state.rankingCategory === 'mount') {
+      res = player.mount_keys;
+    }
+    scoreEl.innerHTML = `<span class="text-amber-400 font-extrabold">BIG 6</span> • ${formatNumber(res)}`;
   } else {
     let res = 0;
     let asc = 0;

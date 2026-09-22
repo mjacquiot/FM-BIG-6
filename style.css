@@ -116,15 +116,17 @@ input[type="range"]::-moz-range-thumb {
   border-color: rgba(217, 119, 6, 0.4);
 }
 
-/* Bouton admin caché en bas à droite */
+/* Bouton admin caché en bas à droite (totalement invisible par défaut) */
 .secret-admin-trigger {
-  opacity: 0.15;
+  opacity: 0;
+  cursor: default;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .secret-admin-trigger:hover,
 .secret-admin-trigger:focus-visible {
-  opacity: 1;
+  opacity: 0.9;
+  cursor: pointer;
   transform: scale(1.1);
 }
 

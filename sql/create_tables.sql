@@ -73,13 +73,13 @@ CREATE POLICY "fm_big6_update_all"
     USING (true)
     WITH CHECK (true);
 
--- Suppression réservée aux administrateurs connectés (admin@admin.fr)
+-- Suppression réservée EXCLUSIVEMENT au compte administrateur (admin@admin.fr)
 DROP POLICY IF EXISTS "fm_big6_delete_admin" ON public.fm_big6_players;
 CREATE POLICY "fm_big6_delete_admin"
     ON public.fm_big6_players
     FOR DELETE
     TO authenticated
-    USING (true);
+    USING ((auth.jwt() ->> 'email') = 'admin@admin.fr');
 
 -- 4. Fonction et déclencheur (trigger) pour mettre à jour automatiquement 'updated_at'
 CREATE OR REPLACE FUNCTION public.update_fm_big6_timestamp()
