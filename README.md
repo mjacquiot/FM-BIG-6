@@ -1,107 +1,142 @@
-# FM BIG 6 - Suivi d'Avancement & Classements de Guilde
+# FAS - Suivi d'Avancement & Simulation Réelle de Guilde
 
-Application web mobile-first responsive conçue pour le suivi d'avancement et les classements de guilde (Compétences, Œufs, Montures, Forge). Directement prête à être hébergée sur **GitHub Pages** avec une base de données temps réel **Supabase**.
-
----
-
-## 🚀 1. Configuration Supabase (Indispensable)
-
-Votre base de données Supabase existante est prête à accueillir la table sans aucun impact sur vos autres tables. Suivez ces 2 étapes simples :
-
-### Étape 1 : Exécuter le script SQL dans Supabase
-1. Rendez-vous sur votre console Supabase : [https://supabase.com/dashboard](https://supabase.com/dashboard)
-2. Sélectionnez votre projet.
-3. Dans le menu latéral gauche, cliquez sur **SQL Editor** (icône `>_`).
-4. Cliquez sur **New query**.
-5. Copiez et collez l'intégralité du contenu du fichier [`sql/create_tables.sql`](./sql/create_tables.sql) :
-   *(Le script crée la table `fm_big6_players`, configure les contraintes, les index et les politiques de sécurité RLS sans toucher aux données existantes).*
-6. Cliquez sur le bouton vert **Run** en bas à droite pour exécuter le script.
-
-### Étape 2 : Créer le compte Administrateur (`admin@admin.fr`)
-1. Dans le menu latéral de Supabase, cliquez sur **Authentication** (icône utilisateur).
-2. Cliquez sur l'onglet **Users**, puis sur le bouton vert **Add user** > **Create user**.
-3. Renseignez :
-   - **Email** : `admin@admin.fr`
-   - **Password** : *(définissez le mot de passe de votre choix)*
-   - Cochez impérativement **Auto Confirm User?** pour valider immédiatement le compte.
-4. Cliquez sur **Create user**.
+Application web mobile-first responsive conçue pour le suivi d'avancement, la simulation de dépense réelle des ressources et les classements de guilde (**Compétences**, **Œufs**, **Montures**, **Forge**). Directement hébergeable sur **GitHub Pages** avec une base de données temps réel **Supabase**.
 
 ---
 
-## 🔒 2. Utilisation du Portail Administrateur
+## 🚀 1. Mise à jour ou Installation Supabase
 
-- Un bouton discret en forme de cadenas se trouve tout en bas à droite de l'écran.
-- Cliquez dessus pour ouvrir la fenêtre d'administration.
-- Saisissez le mot de passe configuré à l'étape précédente pour vous connecter avec `admin@admin.fr`.
-- Une fois connecté :
-  - Un badge vert/doré **Admin** apparaît dans la barre supérieure.
-  - Des boutons rouges de suppression <kbd>🗑️</kbd> s'affichent à côté de chaque joueur dans les tableaux de classement.
-  - Vous pouvez supprimer un joueur ayant démissionné de la guilde ou ayant fait une fausse manipulation (avec confirmation préalable).
-  - Vous pouvez vous déconnecter à tout moment.
+Votre base de données Supabase existante est prête. Aucune table ni donnée existante n'est écrasée ou supprimée.
 
----
+### Option A : Si vous avez déjà la table `fm_big6_players` (Mise à jour rapide)
+1. Allez sur votre console Supabase : [https://supabase.com/dashboard](https://supabase.com/dashboard)
+2. Cliquez sur **SQL Editor** dans le menu de gauche.
+3. Collez et exécutez la commande suivante :
 
-## 📱 3. Fonctionnalités de l'Application
+```sql
+-- Ajout des créneaux horaires souhaités (matin, midi, soir, rush)
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS available_slots TEXT[] DEFAULT '{}';
 
-### Onglet Inscription (Wizard mobile par étapes)
-- **Étape 1 : Pseudo**
-  - Si le pseudo existe déjà dans la base, ses anciennes données sont automatiquement détectées et pré-remplies.
-  - Aucune ligne en double n'est créée : les scores sont mis à jour proprement.
-- **Étape 2 : Compétences** (Icône `Tickets FM.png`)
-  - Tickets (0 à 500 000) avec raccourcis rapides (+5k, +25k, Max).
-  - Niveau d'ascension (0 à 3).
-  - Niveau atteint dans l'ascension (0 à 100).
-  - Niveau de technologie débloqué (0 à 5).
-- **Étape 3 : Œufs** (Icône `oeufs FM.png`)
-  - Œufs (0 à 200 000).
-  - Niveau d'ascension (0 à 3), Niveau atteint (0 à 100), Technologie (0 à 5).
-- **Étape 4 : Monture** (Icône `Monture FM.png`)
-  - Clés de monture (0 à 200 000).
-  - Niveau d'ascension (0 à 3), Niveau atteint (0 à 100), Technologie (0 à 5).
-- **Étape 5 : Forge** (Icône `Forge FM.png`)
-  - Marteaux (0 à 500 000).
-  - Niveau d'ascension (0 à 3), Niveau atteint (0 à 35).
-- **Bouton Terminer** : Enregistrement instantané, pluie de confettis et accès direct aux résultats.
+-- Ajout des fusions disponibles tout de suite pour les Œufs (0 à 10 000)
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS eggs_fusions INTEGER NOT NULL DEFAULT 0 
+CHECK (eggs_fusions >= 0 AND eggs_fusions <= 10000);
 
-### Onglet Résultats (Classements Top 50)
-1. **Classement Général d'avancement** :
-   - Calcule le score global basé sur la somme des rangs obtenus dans les 4 catégories d'avancement (le plus petit score est classé 1er).
-2. **Classements d'avancement (Top 50)** pour les 4 catégories :
-   - Critères : 1) Ascension &rarr; 2) Technologie &rarr; 3) Niveau d'ascension &rarr; 4) Ressources.
-3. **Ordre d'ascension (Rush Top 50)** (Compétences & Montures) :
-   - Critères : 1) Nombre de ressources &rarr; 2) Technologie &rarr; 3) Ascension.
-4. **Outils intégrés** :
-   - Podiums visuels Top 3 (Or 🥇, Argent 🥈, Bronze 🥉).
-   - Barre de recherche instantanée par pseudo.
-   - Bouton d'actualisation en temps réel.
+-- Ajout des fusions disponibles tout de suite pour les Montures (0 à 2 000)
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS mount_fusions INTEGER NOT NULL DEFAULT 0 
+CHECK (mount_fusions >= 0 AND mount_fusions <= 2000);
+```
+
+### Option B : Si vous partez de zéro (Nouvelle base)
+Exécutez le script complet disponible dans [`sql/create_tables.sql`](./sql/create_tables.sql).
+
+### Compte Administrateur (`admin@admin.fr`)
+1. Dans le menu de gauche Supabase, cliquez sur **Authentication** > **Users** > **Add user** > **Create user**.
+2. Renseignez `admin@admin.fr`, votre mot de passe, et cochez **Auto Confirm User?**.
 
 ---
 
-## 🌐 4. Déploiement sur GitHub Pages (1 minute)
+## 🧮 2. Moteur de Simulation Réelle & Barème
 
-1. Créez un dépôt sur GitHub (par exemple `fm-big-6`) et poussez l'ensemble des fichiers du projet à la racine.
-2. Sur la page de votre dépôt GitHub, allez dans **Settings** (Paramètres).
-3. Dans le menu de gauche, cliquez sur **Pages**.
-4. Sous la section **Build and deployment** :
-   - Source : sélectionnez **Deploy from a branch**.
-   - Branch : sélectionnez **main** (ou **master**) et le dossier **/(root)**.
-   - Cliquez sur **Save**.
-5. Votre application sera disponible en moins de 60 secondes à l'adresse fournie par GitHub (ex: `https://votre-pseudo.github.io/fm-big-6/`).
+Pour simuler le franchissement des niveaux d'ascension (100 niveaux par palier d'ascension), le jeu applique une réduction du coût selon le niveau de technologie débloqué (Tech 0 à 5) :
+
+| Tech | Monture (clés pour 100 niv.) | Compétence (tickets pour 100 niv.) | Œufs (œufs pour 100 niv.) |
+| :---: | :---: | :---: | :---: |
+| **0** | 99 000 | 379 800 | 191 400 |
+| **1** | 86 400 | 360 810 | 174 000 |
+| **2** | 74 250 | 341 820 | 159 500 |
+| **3** | 65 532 | 322 830 | 147 300 |
+| **4** | 56 600 | 303 840 | 136 800 |
+| **5** | 50 160 | 284 850 | 127 600 |
+
+*Remarque pour la Forge :* L'avancement (0 à 35 par palier) ne fait pas l'objet d'un barème de dépense par tech et reste calculé directement sur les valeurs saisies.
 
 ---
 
-## 📂 5. Arborescence du Projet
+## ⚔️ 3. Formules des Points de Guerre (War Points)
+
+Dans la vue **Ordre d'Ascension**, les points de guerre sont calculés en direct pour chaque joueur sur les **niveaux gagnés/franchis grâce aux ressources dépensées pendant le rush** :
+
+1. **Compétence :**
+   $$\text{Points} = \text{niveaux\_gagnés} \times 110 \times 175$$
+2. **Œufs :**
+   $$\text{Points} = (\text{fusions\_œufs} \times 2250) + (\text{niveaux\_gagnés} \times 23 \times 2250)$$
+3. **Monture :**
+   $$\text{Points} = (\text{fusions\_monture} \times 1080) + (\text{niveaux\_gagnés} \times 20 \times 1080 \times 2)$$
+
+---
+
+## 🏆 4. Les 4 Vues de Classements
+
+L'onglet **Résultats** propose 4 vues dynamiques :
+
+1. **🏆 Classement Réel (Vue par défaut)** :
+   - Combine les classements simulés des 4 catégories (Compétence simulée, Œufs simulés, Monture simulée, Forge).
+   - Somme des rangs réels : le joueur avec le score le plus faible est classé 1er.
+2. **📊 Classement Hors Ressources** :
+   - Ancien classement général basé uniquement sur les valeurs actuelles brutes saisies (sans simulation de dépense).
+3. **⚡ Classement d'Avancement Réel** :
+   - Disponible pour les 4 catégories (Compétences, Œufs, Montures, Forge).
+   - Affiche l'Ascension Finale simulée, le niveau atteint, les niveaux franchis et les ressources résiduelles.
+4. **🚀 Ordre d'Ascension (Rush)** :
+   - Disponible pour **Compétences**, **Œufs** et **Montures**.
+   - **Simulation limitée à 1 seule ascension** : Contrairement au classement réel où plusieurs ascensions peuvent s'enchaîner, la simulation du rush s'arrête à 1 seul passage d'ascension maximum (`initialAscension + 1, Niv. 100`).
+   - **Plafond maximal du jeu** : L'Ascension 4 n'existe pas ; le palier maximal est fixé à **Ascension 3, Niveau 100**.
+   - **Relégation des joueurs maxés** : Tout joueur ayant atteint l'Ascension 3 Niveau 100 est relégué en toute fin de liste (avec badge `🔒 Ascension Max`), car il ne peut plus réaliser d'ascension pour ce rush.
+   - **Les 4 Élus du Rush** : Sélectionne 1 Élu pour chaque créneau horaire (**Matin 2h-9h**, **Midi 9h-15h**, **Soir 15h-01h**, **Rush 01h-02h**) parmi les joueurs non-maxés ayant le plus de ressources.
+   - **Suite du classement (5ème au 50ème)** : Joueurs restants classés par ressources décroissantes avec macarons de passage (**Priorité 1**, **Priorité 2**, etc.).
+   - Affichage en direct des **Points de Guerre** calculés sur les niveaux franchis.
+
+---
+
+## 📱 5. Formulaire d'Inscription (Wizard Mobile)
+
+- **Étape 0 (Identité & Disponibilités)** :
+  - Saisie du pseudo (détection et pré-remplissage automatique des données existantes).
+  - Choix multiple des créneaux de connexion habituelles et souhaitées :
+    - 🌅 **Matin** (2h - 9h)
+    - ☀️ **Midi** (9h - 15h00)
+    - 🌙 **Soir** (15h00 - 01h00)
+    - ⚡ **Rush** (01h00 - 02h00)
+- **Étape 1 (Compétences)** : Tickets (0 à 500k), Ascension (0 à 3), Niveau (0 à 100), Tech (0 à 5).
+- **Étape 2 (Œufs)** : Œufs (0 à 200k), Ascension (0 à 3), Niveau (0 à 100), Tech (0 à 5) + **Fusions disponibles tout de suite** (0 à 10k).
+- **Étape 3 (Montures)** : Clés (0 à 200k), Ascension (0 à 3), Niveau (0 à 100), Tech (0 à 5) + **Fusions disponibles tout de suite** (0 à 2k).
+- **Étape 4 (Forge)** : Marteaux (0 à 500k), Ascension (0 à 3), Niveau (0 à 35).
+
+---
+
+## 🔒 6. Portail Administrateur Sécurisé
+
+- Bouton secret en forme de cadenas tout en bas à droite de l'écran.
+- Connexion via Supabase Auth (`admin@admin.fr`).
+- Permet la suppression définitive de joueurs (démission, fausse manipulation) avec confirmation.
+- La session est isolée en `sessionStorage` pour qu'aucun utilisateur lambda ne soit connecté en administrateur par défaut.
+
+---
+
+## 🌐 7. Déploiement sur GitHub Pages
+
+1. Créez un dépôt GitHub et poussez tous les fichiers à la racine.
+2. Allez dans **Settings** > **Pages** de votre dépôt.
+3. Dans **Build and deployment**, sélectionnez **Deploy from a branch**, branche `main`, dossier `/(root)`.
+4. Cliquez sur **Save**. L'application est en ligne !
+
+---
+
+## 📂 8. Arborescence du Projet
 
 ```
-FM BIG 6/
+FAS/
 ├── index.html                 # Application SPA complète responsive
-├── style.css                  # Styles graphiques, thèmes et micro-interactions
-├── app.js                     # Logique du formulaire, vues et interface
-├── supabaseClient.js          # Client Supabase v2 (CRUD, RLS & Auth)
-├── rankingEngine.js           # Moteur de tri et calcul des classements
+├── style.css                  # Thème dark gaming, cartes des 4 Élus, badges
+├── app.js                     # Logique applicative, formulaires et affichage
+├── supabaseClient.js          # Client Supabase v2 (Auth, CRUD, RLS)
+├── rankingEngine.js           # Moteur de simulation réelle, points de guerre et 4 élus
 ├── sql/
-│   └── create_tables.sql      # Requête SQL pour initialiser la table Supabase
-├── README.md                  # Documentation et guide de démarrage
+│   └── create_tables.sql      # Script SQL complet et non destructif pour Supabase
+├── README.md                  # Documentation complète
 ├── Forge FM.png               # Icône Marteaux de forge
 ├── Monture FM.png             # Icône Clés de monture
 ├── Tickets FM.png             # Icône Tickets de compétences

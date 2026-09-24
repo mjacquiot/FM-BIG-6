@@ -1,5 +1,5 @@
 /**
- * Logique Applicative Principale - FM BIG 6
+ * Logique Applicative Principale - FAS (Simulation Réelle, Créneaux & Points de Guerre)
  */
 
 import {
@@ -15,25 +15,28 @@ import {
 } from './supabaseClient.js';
 
 import {
+  simulateRealProgression,
+  calculateWarPoints,
   getAvancementRanking,
-  getOrdreAscensionRanking,
-  getGeneralRanking
+  getGeneralRealRanking,
+  getGeneralRawRanking,
+  getOrdreAscensionWithElus
 } from './rankingEngine.js';
 
 // =============================================================================
 // ÉTAT DE L'APPLICATION
 // =============================================================================
 const state = {
-  currentTab: 'inscription', // 'inscription' | 'resultat'
-  currentStep: 0,           // 0 à 4 (étapes formulaire) ou 5 (succès)
-  players: [],              // Données brutes depuis Supabase
+  currentTab: 'inscription',  // 'inscription' | 'resultat'
+  currentStep: 0,            // 0 à 4 (étapes formulaire) ou 5 (succès)
+  players: [],               // Données brutes depuis Supabase
   isLoading: false,
   isAdmin: false,
   adminSession: null,
 
   // Vue des classements
-  rankingView: 'general',    // 'general' | 'avancement' | 'ordre'
-  rankingCategory: 'skills', // 'skills' | 'eggs' | 'mount' | 'forge'
+  rankingView: 'general-real', // 'general-real' | 'general-raw' | 'avancement' | 'ordre'
+  rankingCategory: 'skills',   // 'skills' | 'eggs' | 'mount' | 'forge'
   searchQuery: '',
 
   // Données du joueur en cours de saisie
@@ -223,9 +226,11 @@ function initFormControls() {
 
   setupSyncRangeAndNumber('input-eggs-count', 'range-eggs-count');
   setupSyncRangeAndNumber('input-eggs-ascension-level', 'range-eggs-ascension-level');
+  setupSyncRangeAndNumber('input-eggs-fusions', 'range-eggs-fusions');
 
   setupSyncRangeAndNumber('input-mount-keys', 'range-mount-keys');
   setupSyncRangeAndNumber('input-mount-ascension-level', 'range-mount-ascension-level');
+  setupSyncRangeAndNumber('input-mount-fusions', 'range-mount-fusions');
 
   setupSyncRangeAndNumber('input-forge-hammers', 'range-forge-hammers');
   setupSyncRangeAndNumber('input-forge-ascension-level', 'range-forge-ascension-level');
@@ -451,6 +456,12 @@ async function checkExistingPseudo() {
 }
 
 function fillFormWithPlayerData(player) {
+  // Créneaux horaires
+  const playerSlots = Array.isArray(player.available_slots) ? player.available_slots : [];
+  document.querySelectorAll('input[name="slot-choice"]').forEach(cb => {
+    cb.checked = playerSlots.includes(cb.value);
+  });
+
   // Compétences
   setFieldValue('input-skills-tickets', 'range-skills-tickets', player.skills_tickets);
   setPillGroupValue('skills-ascension', 'input-skills-ascension', player.skills_ascension);
@@ -462,12 +473,14 @@ function fillFormWithPlayerData(player) {
   setPillGroupValue('eggs-ascension', 'input-eggs-ascension', player.eggs_ascension);
   setFieldValue('input-eggs-ascension-level', 'range-eggs-ascension-level', player.eggs_ascension_level);
   setPillGroupValue('eggs-tech', 'input-eggs-tech-level', player.eggs_tech_level);
+  setFieldValue('input-eggs-fusions', 'range-eggs-fusions', player.eggs_fusions || 0);
 
   // Monture
   setFieldValue('input-mount-keys', 'range-mount-keys', player.mount_keys);
   setPillGroupValue('mount-ascension', 'input-mount-ascension', player.mount_ascension);
   setFieldValue('input-mount-ascension-level', 'range-mount-ascension-level', player.mount_ascension_level);
   setPillGroupValue('mount-tech', 'input-mount-tech-level', player.mount_tech_level);
+  setFieldValue('input-mount-fusions', 'range-mount-fusions', player.mount_fusions || 0);
 
   // Forge
   setFieldValue('input-forge-hammers', 'range-forge-hammers', player.forge_hammers);
@@ -500,7 +513,13 @@ async function handleSubmitInscription() {
   btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> <span>Enregistrement...</span>`;
   initLucide();
 
+  const selectedSlots = [];
+  document.querySelectorAll('input[name="slot-choice"]:checked').forEach(cb => {
+    selectedSlots.push(cb.value);
+  });
+
   const playerData = {
+    available_slots: selectedSlots,
     pseudo,
     skills_tickets: document.getElementById('input-skills-tickets').value,
     skills_ascension: document.getElementById('input-skills-ascension').value,
@@ -511,16 +530,18 @@ async function handleSubmitInscription() {
     eggs_ascension: document.getElementById('input-eggs-ascension').value,
     eggs_ascension_level: document.getElementById('input-eggs-ascension-level').value,
     eggs_tech_level: document.getElementById('input-eggs-tech-level').value,
+    eggs_fusions: document.getElementById('input-eggs-fusions')?.value || 0,
 
     mount_keys: document.getElementById('input-mount-keys').value,
     mount_ascension: document.getElementById('input-mount-ascension').value,
     mount_ascension_level: document.getElementById('input-mount-ascension-level').value,
     mount_tech_level: document.getElementById('input-mount-tech-level').value,
+    mount_fusions: document.getElementById('input-mount-fusions')?.value || 0,
 
     forge_hammers: document.getElementById('input-forge-hammers').value,
     forge_ascension: document.getElementById('input-forge-ascension').value,
     forge_ascension_level: document.getElementById('input-forge-ascension-level').value,
-    forge_tech_level: document.getElementById('input-forge-tech-level').value || 0
+    forge_tech_level: document.getElementById('input-forge-tech-level')?.value || 0
   };
 
   try {
@@ -600,7 +621,7 @@ function updateCategorySelectorBar() {
   const container = document.getElementById('category-selector-bar');
   if (!container) return;
 
-  if (state.rankingView === 'general') {
+  if (state.rankingView === 'general-real' || state.rankingView === 'general-raw') {
     container.classList.add('hidden');
     container.innerHTML = '';
     updateCriteriaDescription();
@@ -619,12 +640,13 @@ function updateCategorySelectorBar() {
       { id: 'forge', label: 'Forge', icon: './Forge FM.png' }
     ];
   } else if (state.rankingView === 'ordre') {
-    // Uniquement compétences et montures pour l'ordre d'ascension
+    // 3 catégories pour l'ordre d'ascension : compétences, œufs, monture
     categories = [
       { id: 'skills', label: 'Compétences', icon: './Tickets FM.png' },
+      { id: 'eggs', label: 'Œufs', icon: './oeufs FM.png' },
       { id: 'mount', label: 'Monture', icon: './Monture FM.png' }
     ];
-    if (state.rankingCategory !== 'skills' && state.rankingCategory !== 'mount') {
+    if (state.rankingCategory === 'forge') {
       state.rankingCategory = 'skills';
     }
   }
@@ -652,24 +674,32 @@ function updateCriteriaDescription() {
   const criteriaText = document.getElementById('ranking-criteria-text');
   if (!criteriaText) return;
 
-  if (state.rankingView === 'general') {
-    criteriaText.innerHTML = `<strong>Classement Général :</strong> Somme des rangs obtenus dans les 4 catégories d'avancement. Le plus petit score est 1er !`;
+  if (state.rankingView === 'general-real') {
+    criteriaText.innerHTML = `<strong>Classement Réel (Simulé) :</strong> Somme des rangs réels après simulation complète de la dépense des ressources (Compétences, Œufs, Monture) selon la technologie. Le plus petit score est 1er !`;
+  } else if (state.rankingView === 'general-raw') {
+    criteriaText.innerHTML = `<strong>Classement Hors Ressources :</strong> Basé uniquement sur les valeurs actuelles saisies. Somme des rangs bruts dans les 4 catégories.`;
   } else if (state.rankingView === 'avancement') {
-    criteriaText.innerHTML = `<strong>Classement d'Avancement :</strong> 1) Ascension &rarr; 2) Technologie &rarr; 3) Niveau Ascension &rarr; 4) Ressources`;
+    criteriaText.innerHTML = `<strong>Classement d'Avancement Réel :</strong> Progression simulée après dépense des ressources (100 niveaux/palier) : 1) Ascension simulée &rarr; 2) Niveau atteint &rarr; 3) Ressources résiduelles &rarr; 4) Tech. Plafond maximal : Ascension 3 Niv. 100.`;
   } else if (state.rankingView === 'ordre') {
-    criteriaText.innerHTML = `<strong>Ordre d'Ascension (Rush) :</strong> 1) Ressources &rarr; 2) Technologie &rarr; 3) Ascension. Les 6 premiers forment le <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/30">BIG 6</span>, suivis de l'ordre de passage (Priorité 1, Priorité 2, ...).`;
+    criteriaText.innerHTML = `<strong>Ordre d'Ascension (Rush) :</strong> Sélection des <strong>4 Élus</strong> (1 par créneau horaire : Matin, Midi, Soir, Rush) avec simulation plafonnée à <strong>1 seule ascension max</strong>. Les joueurs ayant atteint le palier maximal (Asc. 3 Niv. 100) sont relégués en toute fin de liste. Points de Guerre calculés sur les niveaux franchis.`;
   }
 }
 
 /**
- * Rendu visuel complet des classements (Podiums + Lignes Top 50)
+ * Rendu visuel complet des classements (Podiums, 4 Élus + Lignes Top 50)
  */
 function renderRankings() {
   const rowsContainer = document.getElementById('ranking-rows-container');
   const listCountEl = document.getElementById('ranking-list-count');
+  const elusRushContainer = document.getElementById('elus-rush-container');
+  const elusCardsGrid = document.getElementById('elus-cards-grid');
+  const podiumContainer = document.getElementById('ranking-podium-container');
+
   if (!rowsContainer) return;
 
   if (state.players.length === 0) {
+    if (elusRushContainer) elusRushContainer.classList.add('hidden');
+    if (podiumContainer) podiumContainer.classList.remove('hidden');
     rowsContainer.innerHTML = `
       <div class="p-8 text-center text-slate-500 space-y-2">
         <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-600"></i>
@@ -683,14 +713,63 @@ function renderRankings() {
     return;
   }
 
-  // Calcul du classement selon la vue sélectionnée
+  // Cas spécifique de l'Ordre d'Ascension (Les 4 Élus du Rush + Suite)
+  if (state.rankingView === 'ordre') {
+    if (podiumContainer) podiumContainer.classList.add('hidden');
+    if (elusRushContainer) elusRushContainer.classList.remove('hidden');
+
+    const { elus, suite } = getOrdreAscensionWithElus(state.players, state.rankingCategory);
+
+    // Rendu des 4 cartes d'Élus
+    if (elusCardsGrid) {
+      if (elus.length === 0) {
+        elusCardsGrid.innerHTML = `
+          <div class="col-span-full p-4 text-center text-slate-500 text-xs">
+            Aucun joueur éligible pour les créneaux.
+          </div>
+        `;
+      } else {
+        elusCardsGrid.innerHTML = elus.map(elu => renderEluCard(elu, state.rankingCategory)).join('');
+      }
+    }
+
+    // Filtrage de la suite par recherche de pseudo
+    let displaySuite = suite;
+    if (state.searchQuery) {
+      displaySuite = suite.filter(p => p.pseudo.toLowerCase().includes(state.searchQuery));
+    }
+
+    if (listCountEl) {
+      const totalCount = elus.length + displaySuite.length;
+      listCountEl.textContent = `${totalCount} joueur${totalCount > 1 ? 's' : ''}`;
+    }
+
+    if (displaySuite.length === 0) {
+      rowsContainer.innerHTML = `
+        <div class="p-6 text-center text-slate-500 text-xs">
+          ${suite.length === 0 ? 'Aucun autre joueur dans la suite du classement.' : `Aucun joueur ne correspond à la recherche "${escapeHtml(state.searchQuery)}" dans la suite.`}
+        </div>
+      `;
+    } else {
+      rowsContainer.innerHTML = displaySuite.map(player => renderPlayerRow(player)).join('');
+    }
+
+    initLucide();
+    attachAdminDeleteListeners();
+    return;
+  }
+
+  // Autres vues : Général Réel, Général Brut, Avancement
+  if (elusRushContainer) elusRushContainer.classList.add('hidden');
+  if (podiumContainer) podiumContainer.classList.remove('hidden');
+
   let rankedPlayers = [];
-  if (state.rankingView === 'general') {
-    rankedPlayers = getGeneralRanking(state.players, 50);
+  if (state.rankingView === 'general-real') {
+    rankedPlayers = getGeneralRealRanking(state.players, 50);
+  } else if (state.rankingView === 'general-raw') {
+    rankedPlayers = getGeneralRawRanking(state.players, 50);
   } else if (state.rankingView === 'avancement') {
-    rankedPlayers = getAvancementRanking(state.players, state.rankingCategory, 50);
-  } else if (state.rankingView === 'ordre') {
-    rankedPlayers = getOrdreAscensionRanking(state.players, state.rankingCategory, 50);
+    rankedPlayers = getAvancementRanking(state.players, state.rankingCategory, true, 50);
   }
 
   // Filtrage par recherche de pseudo si renseigné
@@ -703,7 +782,7 @@ function renderRankings() {
     listCountEl.textContent = `${displayList.length} joueur${displayList.length > 1 ? 's' : ''}`;
   }
 
-  // Mettre à jour les podiums (Top 3 du classement brut non filtré pour garder la cohérence)
+  // Mettre à jour les podiums (Top 3)
   updatePodiums(rankedPlayers);
 
   // Rendu de la liste
@@ -720,8 +799,13 @@ function renderRankings() {
 
   rowsContainer.innerHTML = displayList.map(player => renderPlayerRow(player)).join('');
   initLucide();
+  attachAdminDeleteListeners();
+}
 
-  // Attacher les écouteurs de suppression admin
+/**
+ * Attache les écouteurs de suppression admin
+ */
+function attachAdminDeleteListeners() {
   if (state.isAdmin) {
     document.querySelectorAll('.btn-admin-delete-row').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -735,24 +819,135 @@ function renderRankings() {
 }
 
 /**
+ * Génère le HTML pour les badges de créneaux horaires
+ */
+function renderSlotBadgesHtml(slots) {
+  if (!slots || !Array.isArray(slots) || slots.length === 0) return '';
+  const badges = {
+    matin: '<span class="slot-badge slot-badge-matin">🌅 Matin</span>',
+    midi: '<span class="slot-badge slot-badge-midi">☀️ Midi</span>',
+    soir: '<span class="slot-badge slot-badge-soir">🌙 Soir</span>',
+    rush: '<span class="slot-badge slot-badge-rush">⚡ Rush</span>'
+  };
+  return slots.map(s => badges[s] || '').join(' ');
+}
+
+/**
+ * Rendu d'une carte d'Élu du Rush (Top 4 par créneau)
+ */
+function renderEluCard(elu, category) {
+  const slot = elu.eluSlot || { key: 'rush', label: 'Rush (01h00 - 02h00)' };
+  let resCount = 0;
+  let iconUrl = '';
+  let ascLvl = 0;
+  let ascStage = 0;
+  let techLvl = 0;
+
+  if (category === 'skills') {
+    resCount = elu.skills_tickets;
+    iconUrl = './Tickets FM.png';
+    ascLvl = elu.skills_ascension;
+    ascStage = elu.skills_ascension_level;
+    techLvl = elu.skills_tech_level;
+  } else if (category === 'eggs') {
+    resCount = elu.eggs_count;
+    iconUrl = './oeufs FM.png';
+    ascLvl = elu.eggs_ascension;
+    ascStage = elu.eggs_ascension_level;
+    techLvl = elu.eggs_tech_level;
+  } else if (category === 'mount') {
+    resCount = elu.mount_keys;
+    iconUrl = './Monture FM.png';
+    ascLvl = elu.mount_ascension;
+    ascStage = elu.mount_ascension_level;
+    techLvl = elu.mount_tech_level;
+  }
+
+  const sim = elu.sim || {};
+  const warPoints = elu.warPoints || 0;
+
+  const slotIcons = {
+    matin: '🌅',
+    midi: '☀️',
+    soir: '🌙',
+    rush: '⚡'
+  };
+
+  const adminDeleteBtn = state.isAdmin ? `
+    <button type="button" class="btn-admin-delete-row p-1 text-slate-500 hover:text-red-400 transition"
+      data-player-id="${elu.id}" data-player-pseudo="${escapeHtml(elu.pseudo)}" title="Supprimer ce joueur (Admin)">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+    </button>
+  ` : '';
+
+  return `
+    <div class="elu-card flex flex-col justify-between space-y-3">
+      <div>
+        <div class="flex items-center justify-between gap-1 pb-2 border-b border-amber-500/20">
+          <div class="flex items-center gap-1.5 font-bold text-xs text-amber-300">
+            <span>${slotIcons[slot.key] || '⭐'}</span>
+            <span class="uppercase tracking-wider">${slot.label}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              ÉLU
+            </span>
+            ${adminDeleteBtn}
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <h4 class="font-black text-base text-white truncate">${escapeHtml(elu.pseudo)}</h4>
+          ${!elu.assignedBySlot ? `
+            <span class="text-[10px] text-amber-400/80 italic block">Attribué par ressources (créneau libre)</span>
+          ` : ''}
+        </div>
+
+        <div class="mt-2 space-y-1.5 text-xs text-slate-300">
+          <div class="flex items-center justify-between font-bold">
+            <span class="flex items-center gap-1 text-amber-300">
+              <img src="${iconUrl}" alt="" class="w-4 h-4 object-contain">
+              ${formatNumber(resCount)}
+            </span>
+            <span class="text-slate-300">Asc. ${ascLvl} (Niv. ${ascStage})</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span>Tech: <strong class="text-purple-300">${techLvl}</strong></span>
+            <span>Niv. franchis : <strong class="text-emerald-400">+${sim.levelsGained || 0}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Points Guerre :</span>
+        <span class="war-points-badge">
+          <i data-lucide="swords" class="w-3.5 h-3.5 text-red-400"></i>
+          <span>${formatNumber(warPoints)}</span>
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Rendu d'une ligne de joueur dans le classement
  */
 function renderPlayerRow(player) {
-  const isPodium = player.rank <= 3;
+  const isPodium = state.rankingView !== 'ordre' && player.rank <= 3;
   let rankClass = "bg-slate-800 text-slate-400";
   let rankIcon = "";
 
-  if (player.rank === 1) {
-    rankClass = "bg-amber-500/20 text-amber-300 border border-amber-500/40";
-    rankIcon = "🥇";
-  } else if (player.rank === 2) {
-    rankClass = "bg-slate-400/20 text-slate-200 border border-slate-400/40";
-    rankIcon = "🥈";
-  } else if (player.rank === 3) {
-    rankClass = "bg-amber-700/20 text-amber-500 border border-amber-700/40";
-    rankIcon = "🥉";
-  } else if (state.rankingView === 'ordre' && player.rank <= 6) {
-    rankClass = "bg-gradient-to-br from-amber-500/25 to-purple-500/25 text-amber-300 border border-amber-500/50 shadow-sm";
+  if (state.rankingView !== 'ordre') {
+    if (player.rank === 1) {
+      rankClass = "bg-amber-500/20 text-amber-300 border border-amber-500/40";
+      rankIcon = "🥇";
+    } else if (player.rank === 2) {
+      rankClass = "bg-slate-400/20 text-slate-200 border border-slate-400/40";
+      rankIcon = "🥈";
+    } else if (player.rank === 3) {
+      rankClass = "bg-amber-700/20 text-amber-500 border border-amber-700/40";
+      rankIcon = "🥉";
+    }
   }
 
   // Tags et habillage spécifiques selon la vue
@@ -760,22 +955,20 @@ function renderPlayerRow(player) {
   let rowHighlightClass = 'hover:bg-slate-800/40';
 
   if (state.rankingView === 'ordre') {
-    if (player.rank <= 6) {
-      // Les 6 premiers sont les BIG 6
+    // Si le joueur est maxé (Ascension 3, Niveau 100), affichage spécifique
+    if (player.isMaxed) {
       statusBadgeHtml = `
-        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-black bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-purple-500/25 text-amber-300 border border-amber-500/40 shadow-sm inline-flex items-center gap-1">
-          <i data-lucide="crown" class="w-3 h-3 text-amber-400"></i>
-          BIG 6
+        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700 inline-flex items-center gap-1 shadow-sm">
+          <i data-lucide="lock" class="w-3 h-3 text-slate-400"></i>
+          Ascension Max
         </span>
       `;
-      rowHighlightClass = 'bg-gradient-to-r from-amber-950/20 via-slate-900/60 to-purple-950/10 border-l-4 border-amber-400 hover:bg-slate-800/60';
+      rowHighlightClass = 'opacity-70 hover:bg-slate-800/40';
     } else {
-      // Les joueurs suivants ont le tag de priorité (7e = Priorité 1, 8e = Priorité 2, etc.)
-      const priorityNum = player.rank - 6;
       statusBadgeHtml = `
         <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 inline-flex items-center gap-1 shadow-sm">
           <i data-lucide="arrow-up-circle" class="w-3 h-3 text-indigo-400"></i>
-          Priorité ${priorityNum}
+          Priorité ${player.priorityNumber}
         </span>
       `;
       rowHighlightClass = 'hover:bg-slate-800/40';
@@ -784,10 +977,34 @@ function renderPlayerRow(player) {
     rowHighlightClass = 'bg-slate-900/40 hover:bg-slate-800/40';
   }
 
+  // Badges de créneaux
+  const slotBadgesHtml = renderSlotBadgesHtml(player.available_slots);
+
   // Contenu spécifique selon le type de classement
   let detailsHtml = '';
 
-  if (state.rankingView === 'general') {
+  if (state.rankingView === 'general-real') {
+    const simSkills = player.simSkills || {};
+    const simEggs = player.simEggs || {};
+    const simMount = player.simMount || {};
+
+    detailsHtml = `
+      <div class="flex flex-wrap items-center gap-1.5 md:gap-3 text-[11px] text-slate-400">
+        <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 font-semibold border border-blue-500/20" title="Tickets réels">
+          Tickets: #${player.rankSkills} (Asc. ${simSkills.finalAscension ?? '-'} Niv. ${simSkills.finalLevel ?? '-'})
+        </span>
+        <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 font-semibold border border-amber-500/20" title="Œufs réels">
+          Œufs: #${player.rankEggs} (Asc. ${simEggs.finalAscension ?? '-'} Niv. ${simEggs.finalLevel ?? '-'})
+        </span>
+        <span class="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-semibold border border-cyan-500/20" title="Monture réelle">
+          Monture: #${player.rankMount} (Asc. ${simMount.finalAscension ?? '-'} Niv. ${simMount.finalLevel ?? '-'})
+        </span>
+        <span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-300 font-semibold border border-orange-500/20" title="Forge">
+          Forge: #${player.rankForge} (Asc. ${player.forge_ascension} Niv. ${player.forge_ascension_level})
+        </span>
+      </div>
+    `;
+  } else if (state.rankingView === 'general-raw') {
     detailsHtml = `
       <div class="flex flex-wrap items-center gap-1.5 md:gap-3 text-[11px] text-slate-400">
         <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 font-semibold border border-blue-500/20" title="Rang Compétences">Tickets: #${player.rankSkills}</span>
@@ -796,55 +1013,129 @@ function renderPlayerRow(player) {
         <span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-300 font-semibold border border-orange-500/20" title="Rang Forge">Forge: #${player.rankForge}</span>
       </div>
     `;
-  } else {
+  } else if (state.rankingView === 'ordre') {
     let resCount = 0;
+    let iconUrl = '';
     let ascLvl = 0;
     let ascStage = 0;
     let techLvl = 0;
-    let iconUrl = '';
 
     if (state.rankingCategory === 'skills') {
       resCount = player.skills_tickets;
+      iconUrl = './Tickets FM.png';
       ascLvl = player.skills_ascension;
       ascStage = player.skills_ascension_level;
+      techLvl = player.skills_tech_level;
+    } else if (state.rankingCategory === 'eggs') {
+      resCount = player.eggs_count;
+      iconUrl = './oeufs FM.png';
+      ascLvl = player.eggs_ascension;
+      ascStage = player.eggs_ascension_level;
+      techLvl = player.eggs_tech_level;
+    } else if (state.rankingCategory === 'mount') {
+      resCount = player.mount_keys;
+      iconUrl = './Monture FM.png';
+      ascLvl = player.mount_ascension;
+      ascStage = player.mount_ascension_level;
+      techLvl = player.mount_tech_level;
+    }
+
+    const sim = player.sim || {};
+    const warPoints = player.warPoints || 0;
+
+    if (player.isMaxed) {
+      detailsHtml = `
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-bold text-slate-400 flex items-center gap-1">
+            <img src="${iconUrl}" alt="" class="w-4 h-4 object-contain opacity-70">
+            ${formatNumber(resCount)}
+          </span>
+          <span class="text-slate-500">•</span>
+          <span class="text-amber-400 font-bold">Asc. 3 (Niv. 100)</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-purple-300">Tech: ${techLvl}</span>
+          <span class="text-slate-500">•</span>
+          <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-semibold border border-slate-700">
+            Niveau Max Atteint (aucune ascension possible)
+          </span>
+        </div>
+      `;
+    } else {
+      detailsHtml = `
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-bold text-slate-200 flex items-center gap-1">
+            <img src="${iconUrl}" alt="" class="w-4 h-4 object-contain">
+            ${formatNumber(resCount)}
+          </span>
+          <span class="text-slate-500">•</span>
+          <span class="text-amber-300 font-semibold">Asc: ${ascLvl} (Niv: ${ascStage})</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-purple-300">Tech: ${techLvl}</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-emerald-400 font-semibold">+${sim.levelsGained || 0} niv.</span>
+          <span class="text-slate-500">•</span>
+          <span class="war-points-badge !py-0.5 !px-2 !text-[10px]">
+            <i data-lucide="swords" class="w-3 h-3 text-red-400"></i>
+            <span>${formatNumber(warPoints)} pts</span>
+          </span>
+        </div>
+      `;
+    }
+  } else if (state.rankingView === 'avancement') {
+    let resCount = 0;
+    let iconUrl = '';
+    let techLvl = 0;
+
+    if (state.rankingCategory === 'skills') {
+      resCount = player.skills_tickets;
       techLvl = player.skills_tech_level;
       iconUrl = './Tickets FM.png';
     } else if (state.rankingCategory === 'eggs') {
       resCount = player.eggs_count;
-      ascLvl = player.eggs_ascension;
-      ascStage = player.eggs_ascension_level;
       techLvl = player.eggs_tech_level;
       iconUrl = './oeufs FM.png';
     } else if (state.rankingCategory === 'mount') {
       resCount = player.mount_keys;
-      ascLvl = player.mount_ascension;
-      ascStage = player.mount_ascension_level;
       techLvl = player.mount_tech_level;
       iconUrl = './Monture FM.png';
     } else if (state.rankingCategory === 'forge') {
       resCount = player.forge_hammers;
-      ascLvl = player.forge_ascension;
-      ascStage = player.forge_ascension_level;
       techLvl = player.forge_tech_level || 0;
       iconUrl = './Forge FM.png';
     }
 
-    detailsHtml = `
-      <div class="flex flex-wrap items-center gap-2 text-xs">
-        <span class="font-bold text-slate-200 flex items-center gap-1">
-          <img src="${iconUrl}" alt="" class="w-4 h-4 object-contain">
-          ${formatNumber(resCount)}
-        </span>
-        <span class="text-slate-500">•</span>
-        <span class="text-amber-300 font-semibold">Asc: ${ascLvl}</span>
-        <span class="text-slate-500">•</span>
-        <span class="text-sky-300">Niv: ${ascStage}</span>
-        ${state.rankingCategory !== 'forge' ? `
+    const sim = player.sim || {};
+
+    if (state.rankingCategory === 'forge') {
+      detailsHtml = `
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-bold text-amber-300">Asc. ${player.forge_ascension}</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-sky-300">Niv. ${player.forge_ascension_level} / 35</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-slate-400 flex items-center gap-1">
+            <img src="${iconUrl}" alt="" class="w-4 h-4 object-contain">
+            ${formatNumber(player.forge_hammers)}
+          </span>
+        </div>
+      `;
+    } else {
+      detailsHtml = `
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+            Asc. Simulée : ${sim.finalAscension} (Niv. ${sim.finalLevel})
+          </span>
+          <span class="text-emerald-400 font-semibold">+${sim.levelsGained} niv.</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-slate-400 flex items-center gap-1">
+            <img src="${iconUrl}" alt="" class="w-3.5 h-3.5 object-contain">
+            Reste: ${formatNumber(sim.remainingResources)}
+          </span>
           <span class="text-slate-500">•</span>
           <span class="text-purple-300">Tech: ${techLvl}</span>
-        ` : ''}
-      </div>
-    `;
+        </div>
+      `;
+    }
   }
 
   // Bouton de suppression admin si session active
@@ -862,16 +1153,17 @@ function renderPlayerRow(player) {
           ${rankIcon ? rankIcon : '#' + player.rank}
         </div>
         <div class="min-w-0">
-          <p class="font-black text-sm md:text-base text-white truncate flex flex-wrap items-center gap-2">
-            <span>${escapeHtml(player.pseudo)}</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-black text-sm md:text-base text-white truncate">${escapeHtml(player.pseudo)}</span>
             ${statusBadgeHtml}
-            ${state.rankingView === 'general' ? `
+            ${slotBadgesHtml}
+            ${(state.rankingView === 'general-real' || state.rankingView === 'general-raw') ? `
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-extrabold border border-indigo-500/30">
                 Score: ${player.totalScore}
               </span>
             ` : ''}
-          </p>
-          <div class="mt-0.5">${detailsHtml}</div>
+          </div>
+          <div class="mt-1">${detailsHtml}</div>
         </div>
       </div>
       <div class="flex items-center gap-2 shrink-0">
@@ -907,29 +1199,19 @@ function setPodiumData(rank, player) {
 
   nameEl.textContent = player.pseudo;
 
-  if (state.rankingView === 'general') {
-    scoreEl.textContent = `Score: ${player.totalScore} pts`;
-  } else if (state.rankingView === 'ordre') {
-    let res = 0;
-    if (state.rankingCategory === 'skills') {
-      res = player.skills_tickets;
-    } else if (state.rankingCategory === 'mount') {
-      res = player.mount_keys;
+  if (state.rankingView === 'general-real') {
+    scoreEl.textContent = `Score: ${player.totalScore} pts (Simulé)`;
+  } else if (state.rankingView === 'general-raw') {
+    scoreEl.textContent = `Score: ${player.totalScore} pts (Brut)`;
+  } else if (state.rankingView === 'avancement') {
+    if (state.rankingCategory === 'forge') {
+      scoreEl.textContent = `Asc. ${player.forge_ascension} • Niv. ${player.forge_ascension_level}`;
+    } else {
+      const sim = player.sim || {};
+      scoreEl.textContent = `Asc. ${sim.finalAscension ?? 0} (Niv. ${sim.finalLevel ?? 0})`;
     }
-    scoreEl.innerHTML = `<span class="text-amber-400 font-extrabold">BIG 6</span> • ${formatNumber(res)}`;
   } else {
-    let res = 0;
-    let asc = 0;
-    if (state.rankingCategory === 'skills') {
-      res = player.skills_tickets; asc = player.skills_ascension;
-    } else if (state.rankingCategory === 'eggs') {
-      res = player.eggs_count; asc = player.eggs_ascension;
-    } else if (state.rankingCategory === 'mount') {
-      res = player.mount_keys; asc = player.mount_ascension;
-    } else if (state.rankingCategory === 'forge') {
-      res = player.forge_hammers; asc = player.forge_ascension;
-    }
-    scoreEl.textContent = `Asc. ${asc} • ${formatNumber(res)}`;
+    scoreEl.textContent = `Rang #${player.rank}`;
   }
 }
 

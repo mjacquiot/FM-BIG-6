@@ -1,15 +1,33 @@
 -- ==============================================================================
--- APPLICATION FM BIG 6 - SCRIPT D'INITIALISATION SUPABASE
+-- APPLICATION FAS - SCRIPT D'INITIALISATION & MISE À JOUR SUPABASE
 -- IMPORTANT : Ce script ne supprime AUCUNE table existante de votre base de données.
--- Il crée uniquement la table dédiée "fm_big6_players" et configure sa sécurité.
 -- ==============================================================================
 
--- 1. Création de la table 'fm_big6_players'
+-- ------------------------------------------------------------------------------
+-- A. SI VOTRE TABLE EXISTE DÉJÀ : EXÉCUTEZ CE BLOC POUR AJOUTER LES NOUVEAUX CHAMPS
+-- ------------------------------------------------------------------------------
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS available_slots TEXT[] DEFAULT '{}';
+
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS eggs_fusions INTEGER NOT NULL DEFAULT 0 
+CHECK (eggs_fusions >= 0 AND eggs_fusions <= 10000);
+
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS mount_fusions INTEGER NOT NULL DEFAULT 0 
+CHECK (mount_fusions >= 0 AND mount_fusions <= 2000);
+
+-- ------------------------------------------------------------------------------
+-- B. SI VOUS PARTEZ DE ZÉRO (NOUVELLE INSTALLATION)
+-- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.fm_big6_players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pseudo TEXT NOT NULL,
     pseudo_normalized TEXT GENERATED ALWAYS AS (LOWER(TRIM(pseudo))) STORED,
     
+    -- Créneaux de connexion souhaités (matin, midi, soir, rush)
+    available_slots TEXT[] DEFAULT '{}',
+
     -- Compétences (Tickets FM)
     skills_tickets INTEGER NOT NULL DEFAULT 0 CHECK (skills_tickets >= 0 AND skills_tickets <= 500000),
     skills_ascension INTEGER NOT NULL DEFAULT 0 CHECK (skills_ascension >= 0 AND skills_ascension <= 3),
@@ -21,12 +39,14 @@ CREATE TABLE IF NOT EXISTS public.fm_big6_players (
     eggs_ascension INTEGER NOT NULL DEFAULT 0 CHECK (eggs_ascension >= 0 AND eggs_ascension <= 3),
     eggs_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (eggs_ascension_level >= 0 AND eggs_ascension_level <= 100),
     eggs_tech_level INTEGER NOT NULL DEFAULT 0 CHECK (eggs_tech_level >= 0 AND eggs_tech_level <= 5),
+    eggs_fusions INTEGER NOT NULL DEFAULT 0 CHECK (eggs_fusions >= 0 AND eggs_fusions <= 10000),
     
     -- Monture (Monture FM)
     mount_keys INTEGER NOT NULL DEFAULT 0 CHECK (mount_keys >= 0 AND mount_keys <= 200000),
     mount_ascension INTEGER NOT NULL DEFAULT 0 CHECK (mount_ascension >= 0 AND mount_ascension <= 3),
     mount_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (mount_ascension_level >= 0 AND mount_ascension_level <= 100),
     mount_tech_level INTEGER NOT NULL DEFAULT 0 CHECK (mount_tech_level >= 0 AND mount_tech_level <= 5),
+    mount_fusions INTEGER NOT NULL DEFAULT 0 CHECK (mount_fusions >= 0 AND mount_fusions <= 2000),
     
     -- Forge (Forge FM)
     forge_hammers INTEGER NOT NULL DEFAULT 0 CHECK (forge_hammers >= 0 AND forge_hammers <= 500000),
@@ -46,10 +66,12 @@ CREATE TABLE IF NOT EXISTS public.fm_big6_players (
 CREATE INDEX IF NOT EXISTS idx_fm_big6_players_pseudo ON public.fm_big6_players (pseudo_normalized);
 CREATE INDEX IF NOT EXISTS idx_fm_big6_players_updated_at ON public.fm_big6_players (updated_at DESC);
 
--- 2. Activation de la sécurité Row Level Security (RLS)
+-- Activation de la sécurité Row Level Security (RLS)
 ALTER TABLE public.fm_big6_players ENABLE ROW LEVEL SECURITY;
 
--- 3. Configuration des politiques RLS
+-- ------------------------------------------------------------------------------
+-- C. POLITIQUES DE SÉCURITÉ (RLS)
+-- ------------------------------------------------------------------------------
 
 -- Lecture publique : Tout le monde peut voir les classements
 DROP POLICY IF EXISTS "fm_big6_select_all" ON public.fm_big6_players;
@@ -81,7 +103,9 @@ CREATE POLICY "fm_big6_delete_admin"
     TO authenticated
     USING ((auth.jwt() ->> 'email') = 'admin@admin.fr');
 
--- 4. Fonction et déclencheur (trigger) pour mettre à jour automatiquement 'updated_at'
+-- ------------------------------------------------------------------------------
+-- D. DÉCLENCHEUR POUR METTRE À JOUR 'updated_at'
+-- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.update_fm_big6_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN

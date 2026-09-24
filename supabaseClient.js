@@ -80,6 +80,8 @@ export async function upsertPlayer(playerData) {
   const existing = await getPlayerByPseudo(normalizedPseudo);
 
   const payload = {
+    available_slots: Array.isArray(playerData.available_slots) ? playerData.available_slots : [],
+
     pseudo: playerData.pseudo.trim(),
     skills_tickets: Number(playerData.skills_tickets) || 0,
     skills_ascension: Number(playerData.skills_ascension) || 0,
@@ -90,11 +92,13 @@ export async function upsertPlayer(playerData) {
     eggs_ascension: Number(playerData.eggs_ascension) || 0,
     eggs_ascension_level: Number(playerData.eggs_ascension_level) || 0,
     eggs_tech_level: Number(playerData.eggs_tech_level) || 0,
+    eggs_fusions: Number(playerData.eggs_fusions) || 0,
 
     mount_keys: Number(playerData.mount_keys) || 0,
     mount_ascension: Number(playerData.mount_ascension) || 0,
     mount_ascension_level: Number(playerData.mount_ascension_level) || 0,
     mount_tech_level: Number(playerData.mount_tech_level) || 0,
+    mount_fusions: Number(playerData.mount_fusions) || 0,
 
     forge_hammers: Number(playerData.forge_hammers) || 0,
     forge_ascension: Number(playerData.forge_ascension) || 0,

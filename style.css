@@ -175,3 +175,78 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* Checkbox de créneaux horaires */
+.slot-checkbox-label {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slot-checkbox-label:has(input:checked) {
+  border-color: rgba(245, 158, 11, 0.8);
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+/* Badges de créneaux */
+.slot-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+.slot-badge-matin {
+  background: rgba(251, 146, 60, 0.15);
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  color: #fdba74;
+}
+.slot-badge-midi {
+  background: rgba(250, 204, 21, 0.15);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  color: #fde047;
+}
+.slot-badge-soir {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #d8b4fe;
+}
+.slot-badge-rush {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+/* Badge Points de Guerre */
+.war-points-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(249, 115, 22, 0.2));
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+/* Cartes des 4 Élus du Rush */
+.elu-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(160deg, rgba(30, 27, 75, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+  box-shadow: 0 8px 20px -6px rgba(245, 158, 11, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+.elu-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 12px 24px -8px rgba(245, 158, 11, 0.3);
+}
+

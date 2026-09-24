@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>FM BIG 6 - Suivi d'Avancement & Classements</title>
+  <title>FAS - Suivi d'Avancement & Simulation</title>
   
   <!-- Favicon avec l'une des icônes du jeu -->
   <link rel="icon" type="image/png" href="./Tickets FM.png">
@@ -76,10 +76,10 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-lg font-black tracking-tight font-heading text-white">FM BIG 6</h1>
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">LOM</span>
+            <h1 class="text-lg font-black tracking-tight font-heading text-white">FAS</h1>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">SIMULATION</span>
           </div>
-          <p class="text-xs text-slate-400 hidden sm:block">Suivi d'avancement & Classements de Guilde</p>
+          <p class="text-xs text-slate-400 hidden sm:block">Suivi d'Avancement & Simulation Réelle</p>
         </div>
       </div>
 
@@ -195,6 +195,55 @@
 
             <!-- Message d'information dynamique si joueur déjà trouvé -->
             <div id="pseudo-status-msg" class="hidden p-3 rounded-xl text-xs flex items-center gap-2"></div>
+
+            <!-- Créneaux horaires de connexion habituelles et souhaitées -->
+            <div class="space-y-2 pt-2 border-t border-slate-800/80">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                Horaires de connexion habituelles et souhaitées
+              </label>
+              <p class="text-[11px] text-slate-400">Cochez une ou plusieurs plages horaires où vous êtes actif :</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-amber-500/50 transition select-none">
+                  <input type="checkbox" name="slot-choice" value="matin" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-950 border-slate-700">
+                  <div class="text-xs">
+                    <div class="font-bold text-white flex items-center gap-1.5">
+                      <span>🌅</span> <span>Matin</span>
+                    </div>
+                    <div class="text-[11px] text-amber-400/80 font-medium">2h - 9h</div>
+                  </div>
+                </label>
+
+                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-amber-500/50 transition select-none">
+                  <input type="checkbox" name="slot-choice" value="midi" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-950 border-slate-700">
+                  <div class="text-xs">
+                    <div class="font-bold text-white flex items-center gap-1.5">
+                      <span>☀️</span> <span>Midi</span>
+                    </div>
+                    <div class="text-[11px] text-yellow-400/80 font-medium">9h - 15h00</div>
+                  </div>
+                </label>
+
+                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-purple-500/50 transition select-none">
+                  <input type="checkbox" name="slot-choice" value="soir" class="w-4 h-4 rounded text-purple-500 focus:ring-purple-500 bg-slate-950 border-slate-700">
+                  <div class="text-xs">
+                    <div class="font-bold text-white flex items-center gap-1.5">
+                      <span>🌙</span> <span>Soir</span>
+                    </div>
+                    <div class="text-[11px] text-purple-400/80 font-medium">15h00 - 01h00</div>
+                  </div>
+                </label>
+
+                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-red-500/50 transition select-none">
+                  <input type="checkbox" name="slot-choice" value="rush" class="w-4 h-4 rounded text-red-500 focus:ring-red-500 bg-slate-950 border-slate-700">
+                  <div class="text-xs">
+                    <div class="font-bold text-white flex items-center gap-1.5">
+                      <span>⚡</span> <span>Rush</span>
+                    </div>
+                    <div class="text-[11px] text-red-400/80 font-medium">01h00 - 02h00</div>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
 
           <!-- Navigation Étape 0 -->
@@ -413,6 +462,29 @@
               </div>
               <input type="hidden" id="input-eggs-tech-level" value="0">
             </div>
+
+            <!-- 5. Fusions œufs et pet disponibles tout de suite (0 à 10 000) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-eggs-fusions" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
+                  Fusions œufs & pet disponibles tout de suite
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 10.000</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-eggs-fusions" min="0" max="10000" step="1" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <input type="range" id="range-eggs-fusions" min="0" max="10000" step="10" value="0" class="w-full">
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-fusions" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-fusions" data-add="50">+50</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-fusions" data-add="200">+200</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-fusions" data-add="1000">+1k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-fusions" data-val="10000">Max (10k)</button>
+              </div>
+            </div>
           </div>
 
           <!-- Navigation Étape 2 -->
@@ -523,6 +595,29 @@
                 <button type="button" class="pill-btn py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 text-sm font-bold flex items-center justify-center" data-group="mount-tech" data-val="5">5</button>
               </div>
               <input type="hidden" id="input-mount-tech-level" value="0">
+            </div>
+
+            <!-- 5. Fusions monture disponibles tout de suite (0 à 2 000) -->
+            <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-mount-fusions" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i>
+                  Fusions monture disponibles tout de suite
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 2.000</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-mount-fusions" min="0" max="2000" step="1" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <input type="range" id="range-mount-fusions" min="0" max="2000" step="5" value="0" class="w-full">
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-fusions" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-fusions" data-add="20">+20</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-fusions" data-add="50">+50</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-fusions" data-add="200">+200</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-fusions" data-val="2000">Max (2k)</button>
+              </div>
             </div>
           </div>
 
@@ -686,11 +781,16 @@
           </button>
         </div>
 
-        <!-- Sous-onglets de classements (Général | Avancement | Ordre d'Ascension) -->
+        <!-- Sous-onglets de classements (Général Réel | Hors Ressources | Avancement | Ordre d'Ascension) -->
         <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-800/80">
-          <button class="ranking-subtab-btn active px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-brand-600 text-white shadow-md shadow-brand-600/30" data-view="general">
-            <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-300"></i>
-            <span>Général</span>
+          <button class="ranking-subtab-btn active px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-brand-600 text-white shadow-md shadow-brand-600/30" data-view="general-real">
+            <i data-lucide="award" class="w-3.5 h-3.5 text-amber-300"></i>
+            <span>Classement Réel</span>
+          </button>
+
+          <button class="ranking-subtab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700" data-view="general-raw">
+            <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-blue-400"></i>
+            <span>Hors Ressources</span>
           </button>
 
           <button class="ranking-subtab-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700" data-view="avancement">
@@ -713,7 +813,21 @@
       <!-- Description et critères du classement actif -->
       <div id="ranking-criteria-badge" class="px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs text-slate-400 flex items-center gap-2">
         <i data-lucide="info" class="w-4 h-4 text-indigo-400 shrink-0"></i>
-        <span id="ranking-criteria-text">Critères : 1) Ascension 2) Technologie 3) Niveau Ascension 4) Ressources</span>
+        <span id="ranking-criteria-text">Critères du classement</span>
+      </div>
+
+      <!-- Section spéciale : Les 4 Élus du Rush (visible en Ordre d'Ascension) -->
+      <div id="elus-rush-container" class="hidden space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="text-sm font-black uppercase tracking-wider text-amber-300 flex items-center gap-2">
+            <i data-lucide="crown" class="w-4 h-4 text-amber-400"></i>
+            <span>Les 4 Élus du Rush</span>
+          </h3>
+          <span class="text-[11px] text-slate-400 font-medium">1 élu par créneau horaire</span>
+        </div>
+        <div id="elus-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Injecté dynamiquement par app.js -->
+        </div>
       </div>
 
       <!-- Podiums Top 3 (visuel attractif) -->
@@ -868,7 +982,7 @@
 
   <!-- Pied de page -->
   <footer class="mt-auto py-4 border-t border-slate-900 text-center text-xs text-slate-600">
-    <p>FM BIG 6 &bull; Développé pour la communauté &bull; Hébergé sur GitHub Pages</p>
+    <p>FAS &bull; Développé pour la communauté &bull; Hébergé sur GitHub Pages</p>
   </footer>
 
   <!-- Scripts applicatifs en module ES6 -->
