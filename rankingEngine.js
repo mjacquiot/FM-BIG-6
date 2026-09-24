@@ -378,6 +378,10 @@ export function getGeneralRealRanking(players, limit = 50) {
     const totalScore = rSkills + rEggs + rMount + rForge;
     const bestRank = Math.min(rSkills, rEggs, rMount, rForge);
 
+    const simSkills = simulateRealProgression('skills', p.skills_ascension, p.skills_ascension_level, p.skills_tech_level, p.skills_tickets);
+    const simEggs = simulateRealProgression('eggs', p.eggs_ascension, p.eggs_ascension_level, p.eggs_tech_level, p.eggs_count);
+    const simMount = simulateRealProgression('mount', p.mount_ascension, p.mount_ascension_level, p.mount_tech_level, p.mount_keys);
+
     return {
       ...p,
       rankSkills: rSkills,
@@ -385,7 +389,10 @@ export function getGeneralRealRanking(players, limit = 50) {
       rankMount: rMount,
       rankForge: rForge,
       totalScore,
-      bestRank
+      bestRank,
+      simSkills,
+      simEggs,
+      simMount
     };
   });
 

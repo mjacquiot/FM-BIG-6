@@ -984,9 +984,9 @@ function renderPlayerRow(player) {
   let detailsHtml = '';
 
   if (state.rankingView === 'general-real') {
-    const simSkills = player.simSkills || {};
-    const simEggs = player.simEggs || {};
-    const simMount = player.simMount || {};
+    const simSkills = player.simSkills || simulateRealProgression('skills', player.skills_ascension, player.skills_ascension_level, player.skills_tech_level, player.skills_tickets);
+    const simEggs = player.simEggs || simulateRealProgression('eggs', player.eggs_ascension, player.eggs_ascension_level, player.eggs_tech_level, player.eggs_count);
+    const simMount = player.simMount || simulateRealProgression('mount', player.mount_ascension, player.mount_ascension_level, player.mount_tech_level, player.mount_keys);
 
     detailsHtml = `
       <div class="flex flex-wrap items-center gap-1.5 md:gap-3 text-[11px] text-slate-400">
