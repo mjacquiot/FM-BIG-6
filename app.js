@@ -193,12 +193,20 @@ function initFormControls() {
   });
 
   // Validation à la touche Entrée sur le pseudo
-  document.getElementById('input-pseudo').addEventListener('keydown', async (e) => {
+  const pseudoInput = document.getElementById('input-pseudo');
+  pseudoInput.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!validatePseudo(true)) return;
       await checkExistingPseudo();
       goToStep(1);
+    }
+  });
+
+  // Détection automatique du pseudo dès la sortie du champ (blur)
+  pseudoInput.addEventListener('blur', async () => {
+    if (pseudoInput.value.trim().length >= 2) {
+      await checkExistingPseudo();
     }
   });
 
@@ -334,8 +342,8 @@ function setPillGroupValue(groupName, hiddenInputId, value) {
 function goToStep(stepIndex) {
   state.currentStep = stepIndex;
 
-  // Cacher tous les panneaux d'étapes
-  for (let i = 0; i <= 4; i++) {
+  // Cacher tous les panneaux d'étapes (0 à 5)
+  for (let i = 0; i <= 5; i++) {
     const panel = document.getElementById(`step-panel-${i}`);
     if (panel) panel.classList.add('hidden');
   }
@@ -343,7 +351,7 @@ function goToStep(stepIndex) {
   if (successPanel) successPanel.classList.add('hidden');
 
   // Afficher le panneau demandé
-  if (stepIndex === 5) {
+  if (stepIndex === 6) {
     if (successPanel) successPanel.classList.remove('hidden');
   } else {
     const targetPanel = document.getElementById(`step-panel-${stepIndex}`);
@@ -353,13 +361,14 @@ function goToStep(stepIndex) {
     }
   }
 
-  // Mettre à jour l'indicateur de progression
+  // Mettre à jour l'indicateur de progression (sur 6 étapes)
   const stepTitles = [
-    "Étape 1 sur 5 : Pseudo",
-    "Étape 2 sur 5 : Compétences (Tickets)",
-    "Étape 3 sur 5 : Œufs de Compagnon",
-    "Étape 4 sur 5 : Clés de Monture",
-    "Étape 5 sur 5 : Marteaux de Forge",
+    "Étape 1 sur 6 : Pseudo",
+    "Étape 2 sur 6 : Rush & Ascension",
+    "Étape 3 sur 6 : Compétences (Tickets)",
+    "Étape 4 sur 6 : Œufs de Compagnon",
+    "Étape 5 sur 6 : Clés de Monture",
+    "Étape 6 sur 6 : Marteaux de Forge",
     "Inscription terminée !"
   ];
 
@@ -369,12 +378,13 @@ function goToStep(stepIndex) {
 
   if (textEl) textEl.textContent = stepTitles[stepIndex] || "";
   
-  const percentage = Math.min(100, Math.round(((stepIndex + 1) / 5) * 100));
+  const percentage = Math.min(100, Math.round(((stepIndex + 1) / 6) * 100));
   if (percentEl) percentEl.textContent = `${percentage}%`;
   if (fillEl) fillEl.style.width = `${percentage}%`;
 
-  // Mettre à jour les puces d'étapes
-  document.querySelectorAll('.step-dot').forEach((dot, idx) => {
+  // Mettre à jour les puces d'étapes (0 à 5)
+  document.querySelectorAll('.step-dot').forEach((dot) => {
+    const idx = parseInt(dot.dataset.step, 10);
     const dotSpan = dot.querySelector('span:first-child');
     if (idx < stepIndex) {
       dot.className = 'step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-emerald-400';
@@ -456,33 +466,60 @@ async function checkExistingPseudo() {
 }
 
 function fillFormWithPlayerData(player) {
-  // Créneaux horaires
+  // Disponibilité Rush & Souhaits d'Ascension (Étape 2)
   const playerSlots = Array.isArray(player.available_slots) ? player.available_slots : [];
-  document.querySelectorAll('input[name="slot-choice"]').forEach(cb => {
-    cb.checked = playerSlots.includes(cb.value);
-  });
+  
+  const cbRush = document.getElementById('cb-rush-available');
+  if (cbRush) cbRush.checked = playerSlots.includes('rush');
 
-  // Compétences
+  const cbSkills = document.getElementById('cb-want-skills');
+  if (cbSkills) {
+    cbSkills.checked = Boolean(
+      player.want_skills_ascension ||
+      playerSlots.includes('asc_skills') ||
+      playerSlots.includes('skills')
+    );
+  }
+
+  const cbEggs = document.getElementById('cb-want-eggs');
+  if (cbEggs) {
+    cbEggs.checked = Boolean(
+      player.want_eggs_ascension ||
+      playerSlots.includes('asc_eggs') ||
+      playerSlots.includes('eggs')
+    );
+  }
+
+  const cbMount = document.getElementById('cb-want-mount');
+  if (cbMount) {
+    cbMount.checked = Boolean(
+      player.want_mount_ascension ||
+      playerSlots.includes('asc_mount') ||
+      playerSlots.includes('mount')
+    );
+  }
+
+  // Compétences (Étape 3)
   setFieldValue('input-skills-tickets', 'range-skills-tickets', player.skills_tickets);
   setPillGroupValue('skills-ascension', 'input-skills-ascension', player.skills_ascension);
   setFieldValue('input-skills-ascension-level', 'range-skills-ascension-level', player.skills_ascension_level);
   setPillGroupValue('skills-tech', 'input-skills-tech-level', player.skills_tech_level);
 
-  // Œufs
+  // Œufs (Étape 4)
   setFieldValue('input-eggs-count', 'range-eggs-count', player.eggs_count);
   setPillGroupValue('eggs-ascension', 'input-eggs-ascension', player.eggs_ascension);
   setFieldValue('input-eggs-ascension-level', 'range-eggs-ascension-level', player.eggs_ascension_level);
   setPillGroupValue('eggs-tech', 'input-eggs-tech-level', player.eggs_tech_level);
   setFieldValue('input-eggs-fusions', 'range-eggs-fusions', player.eggs_fusions || 0);
 
-  // Monture
+  // Monture (Étape 5)
   setFieldValue('input-mount-keys', 'range-mount-keys', player.mount_keys);
   setPillGroupValue('mount-ascension', 'input-mount-ascension', player.mount_ascension);
   setFieldValue('input-mount-ascension-level', 'range-mount-ascension-level', player.mount_ascension_level);
   setPillGroupValue('mount-tech', 'input-mount-tech-level', player.mount_tech_level);
   setFieldValue('input-mount-fusions', 'range-mount-fusions', player.mount_fusions || 0);
 
-  // Forge
+  // Forge (Étape 6)
   setFieldValue('input-forge-hammers', 'range-forge-hammers', player.forge_hammers);
   setPillGroupValue('forge-ascension', 'input-forge-ascension', player.forge_ascension);
   setFieldValue('input-forge-ascension-level', 'range-forge-ascension-level', player.forge_ascension_level);
@@ -513,13 +550,19 @@ async function handleSubmitInscription() {
   btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> <span>Enregistrement...</span>`;
   initLucide();
 
+  // Encodage des choix dans available_slots pour rétrocompatibilité totale
   const selectedSlots = [];
-  document.querySelectorAll('input[name="slot-choice"]:checked').forEach(cb => {
-    selectedSlots.push(cb.value);
-  });
+  if (document.getElementById('cb-rush-available')?.checked) selectedSlots.push('rush');
+  if (document.getElementById('cb-want-skills')?.checked) selectedSlots.push('asc_skills');
+  if (document.getElementById('cb-want-eggs')?.checked) selectedSlots.push('asc_eggs');
+  if (document.getElementById('cb-want-mount')?.checked) selectedSlots.push('asc_mount');
 
   const playerData = {
     available_slots: selectedSlots,
+    want_skills_ascension: document.getElementById('cb-want-skills')?.checked || false,
+    want_eggs_ascension: document.getElementById('cb-want-eggs')?.checked || false,
+    want_mount_ascension: document.getElementById('cb-want-mount')?.checked || false,
+
     pseudo,
     skills_tickets: document.getElementById('input-skills-tickets').value,
     skills_ascension: document.getElementById('input-skills-ascension').value,
@@ -556,7 +599,7 @@ async function handleSubmitInscription() {
       successPseudoEl.innerHTML = `Les données du joueur <strong class="text-emerald-400">${escapeHtml(pseudo)}</strong> ont été enregistrées avec succès.`;
     }
 
-    goToStep(5);
+    goToStep(6);
     showToast(`Scores enregistrés pour ${pseudo} !`, "success");
 
     // Recharger la liste en tâche de fond
@@ -681,7 +724,7 @@ function updateCriteriaDescription() {
   } else if (state.rankingView === 'avancement') {
     criteriaText.innerHTML = `<strong>Classement d'Avancement Réel :</strong> Progression simulée après dépense des ressources (100 niveaux/palier) : 1) Ascension simulée &rarr; 2) Niveau atteint &rarr; 3) Ressources résiduelles &rarr; 4) Tech. Plafond maximal : Ascension 3 Niv. 100.`;
   } else if (state.rankingView === 'ordre') {
-    criteriaText.innerHTML = `<strong>Ordre d'Ascension (Rush) :</strong> Sélection des <strong>4 Élus</strong> (1 par créneau horaire : Matin, Midi, Soir, Rush) avec simulation plafonnée à <strong>1 seule ascension max</strong>. Les joueurs ayant atteint le palier maximal (Asc. 3 Niv. 100) sont relégués en toute fin de liste. Points de Guerre calculés sur les niveaux franchis.`;
+    criteriaText.innerHTML = `<strong>Ordre d'Ascension :</strong> Priorité 1 aux joueurs ayant coché <em>« Je veux faire mon ascension »</em> (<strong>Les Élus</strong>, en jaune doré). Classés par <strong>Points de Guerre prévisionnels</strong> (simulation plafonnée à 1 ascension max + fusions). Les joueurs n'ayant pas coché l'ascension suivent en 2ème partie, et les joueurs au palier max (Asc. 3 Niv. 100) sont relégués en fin de tableau. Le badge <em>⚡ Rush</em> indique la disponibilité au rush nocturne (01h00 - 02h00).`;
   }
 }
 
@@ -713,19 +756,19 @@ function renderRankings() {
     return;
   }
 
-  // Cas spécifique de l'Ordre d'Ascension (Les 4 Élus du Rush + Suite)
+  // Cas spécifique de l'Ordre d'Ascension (Les Élus de l'Ascension + Suite)
   if (state.rankingView === 'ordre') {
     if (podiumContainer) podiumContainer.classList.add('hidden');
     if (elusRushContainer) elusRushContainer.classList.remove('hidden');
 
-    const { elus, suite } = getOrdreAscensionWithElus(state.players, state.rankingCategory);
+    const { elus, suite, allSorted } = getOrdreAscensionWithElus(state.players, state.rankingCategory);
 
-    // Rendu des 4 cartes d'Élus
+    // Rendu des cartes d'Élus en haut de section
     if (elusCardsGrid) {
       if (elus.length === 0) {
         elusCardsGrid.innerHTML = `
           <div class="col-span-full p-4 text-center text-slate-500 text-xs">
-            Aucun joueur éligible pour les créneaux.
+            Aucun joueur n'a coché le souhait d'ascension pour cette ressource pour le moment.
           </div>
         `;
       } else {
@@ -733,25 +776,24 @@ function renderRankings() {
       }
     }
 
-    // Filtrage de la suite par recherche de pseudo
-    let displaySuite = suite;
+    // Filtrage complet par recherche de pseudo
+    let displayList = allSorted;
     if (state.searchQuery) {
-      displaySuite = suite.filter(p => p.pseudo.toLowerCase().includes(state.searchQuery));
+      displayList = allSorted.filter(p => p.pseudo.toLowerCase().includes(state.searchQuery));
     }
 
     if (listCountEl) {
-      const totalCount = elus.length + displaySuite.length;
-      listCountEl.textContent = `${totalCount} joueur${totalCount > 1 ? 's' : ''}`;
+      listCountEl.textContent = `${displayList.length} joueur${displayList.length > 1 ? 's' : ''}`;
     }
 
-    if (displaySuite.length === 0) {
+    if (displayList.length === 0) {
       rowsContainer.innerHTML = `
         <div class="p-6 text-center text-slate-500 text-xs">
-          ${suite.length === 0 ? 'Aucun autre joueur dans la suite du classement.' : `Aucun joueur ne correspond à la recherche "${escapeHtml(state.searchQuery)}" dans la suite.`}
+          ${allSorted.length === 0 ? 'Aucun joueur enregistré pour le moment.' : `Aucun joueur ne correspond à la recherche "${escapeHtml(state.searchQuery)}".`}
         </div>
       `;
     } else {
-      rowsContainer.innerHTML = displaySuite.map(player => renderPlayerRow(player)).join('');
+      rowsContainer.innerHTML = displayList.map(player => renderPlayerRow(player)).join('');
     }
 
     initLucide();
@@ -819,29 +861,26 @@ function attachAdminDeleteListeners() {
 }
 
 /**
- * Génère le HTML pour les badges de créneaux horaires
+ * Génère le HTML pour les badges de créneaux horaires (Rush nocturne)
  */
 function renderSlotBadgesHtml(slots) {
-  if (!slots || !Array.isArray(slots) || slots.length === 0) return '';
-  const badges = {
-    matin: '<span class="slot-badge slot-badge-matin">🌅 Matin</span>',
-    midi: '<span class="slot-badge slot-badge-midi">☀️ Midi</span>',
-    soir: '<span class="slot-badge slot-badge-soir">🌙 Soir</span>',
-    rush: '<span class="slot-badge slot-badge-rush">⚡ Rush</span>'
-  };
-  return slots.map(s => badges[s] || '').join(' ');
+  if (!slots || !Array.isArray(slots)) return '';
+  if (slots.includes('rush')) {
+    return '<span class="slot-badge slot-badge-rush font-semibold text-[11px] inline-flex items-center gap-1" title="Disponible pour le rush nocturne 01h00 - 02h00">⚡ Rush 01h-02h</span>';
+  }
+  return '';
 }
 
 /**
- * Rendu d'une carte d'Élu du Rush (Top 4 par créneau)
+ * Rendu d'une carte d'Élu de l'Ascension (ayant coché le souhait d'ascension)
  */
 function renderEluCard(elu, category) {
-  const slot = elu.eluSlot || { key: 'rush', label: 'Rush (01h00 - 02h00)' };
   let resCount = 0;
   let iconUrl = '';
   let ascLvl = 0;
   let ascStage = 0;
   let techLvl = 0;
+  let fusionsCount = 0;
 
   if (category === 'skills') {
     resCount = elu.skills_tickets;
@@ -855,23 +894,21 @@ function renderEluCard(elu, category) {
     ascLvl = elu.eggs_ascension;
     ascStage = elu.eggs_ascension_level;
     techLvl = elu.eggs_tech_level;
+    fusionsCount = elu.eggs_fusions || 0;
   } else if (category === 'mount') {
     resCount = elu.mount_keys;
     iconUrl = './Monture FM.png';
     ascLvl = elu.mount_ascension;
     ascStage = elu.mount_ascension_level;
     techLvl = elu.mount_tech_level;
+    fusionsCount = elu.mount_fusions || 0;
   }
 
   const sim = elu.sim || {};
   const warPoints = elu.warPoints || 0;
-
-  const slotIcons = {
-    matin: '🌅',
-    midi: '☀️',
-    soir: '🌙',
-    rush: '⚡'
-  };
+  const rushBadge = (elu.isRushAvailable || (Array.isArray(elu.available_slots) && elu.available_slots.includes('rush')))
+    ? '<span class="slot-badge slot-badge-rush font-semibold text-[10px] inline-flex items-center gap-1" title="Disponible pour le rush nocturne 01h00 - 02h00">⚡ Rush 01h-02h</span>'
+    : '';
 
   const adminDeleteBtn = state.isAdmin ? `
     <button type="button" class="btn-admin-delete-row p-1 text-slate-500 hover:text-red-400 transition"
@@ -885,22 +922,18 @@ function renderEluCard(elu, category) {
       <div>
         <div class="flex items-center justify-between gap-1 pb-2 border-b border-amber-500/20">
           <div class="flex items-center gap-1.5 font-bold text-xs text-amber-300">
-            <span>${slotIcons[slot.key] || '⭐'}</span>
-            <span class="uppercase tracking-wider">${slot.label}</span>
+            <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span class="uppercase tracking-wider">ÉLU #${elu.rank}</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              ÉLU
-            </span>
+            ${rushBadge}
             ${adminDeleteBtn}
           </div>
         </div>
 
         <div class="pt-2">
           <h4 class="font-black text-base text-white truncate">${escapeHtml(elu.pseudo)}</h4>
-          ${!elu.assignedBySlot ? `
-            <span class="text-[10px] text-amber-400/80 italic block">Attribué par ressources (créneau libre)</span>
-          ` : ''}
+          <span class="text-[10px] text-amber-400/90 font-semibold block">Souhaite faire son ascension</span>
         </div>
 
         <div class="mt-2 space-y-1.5 text-xs text-slate-300">
@@ -915,11 +948,17 @@ function renderEluCard(elu, category) {
             <span>Tech: <strong class="text-purple-300">${techLvl}</strong></span>
             <span>Niv. franchis : <strong class="text-emerald-400">+${sim.levelsGained || 0}</strong></span>
           </div>
+          ${(category === 'eggs' || category === 'mount') ? `
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+              <span>Fusions saisies :</span>
+              <strong class="text-purple-300">${fusionsCount}</strong>
+            </div>
+          ` : ''}
         </div>
       </div>
 
       <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Points Guerre :</span>
+        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pts de Guerre :</span>
         <span class="war-points-badge">
           <i data-lucide="swords" class="w-3.5 h-3.5 text-red-400"></i>
           <span>${formatNumber(warPoints)}</span>
@@ -955,7 +994,6 @@ function renderPlayerRow(player) {
   let rowHighlightClass = 'hover:bg-slate-800/40';
 
   if (state.rankingView === 'ordre') {
-    // Si le joueur est maxé (Ascension 3, Niveau 100), affichage spécifique
     if (player.isMaxed) {
       statusBadgeHtml = `
         <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700 inline-flex items-center gap-1 shadow-sm">
@@ -963,14 +1001,25 @@ function renderPlayerRow(player) {
           Ascension Max
         </span>
       `;
-      rowHighlightClass = 'opacity-70 hover:bg-slate-800/40';
-    } else {
+      rankClass = "bg-slate-800/60 text-slate-500 border border-slate-700/60";
+      rowHighlightClass = 'opacity-65 hover:bg-slate-800/40';
+    } else if (player.isElu) {
       statusBadgeHtml = `
-        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 inline-flex items-center gap-1 shadow-sm">
-          <i data-lucide="arrow-up-circle" class="w-3 h-3 text-indigo-400"></i>
-          Priorité ${player.priorityNumber}
+        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-1 shadow-sm">
+          <i data-lucide="crown" class="w-3 h-3 text-amber-400"></i>
+          Élu #${player.rank}
         </span>
       `;
+      rankClass = "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black";
+      rowHighlightClass = 'row-elu';
+    } else {
+      statusBadgeHtml = `
+        <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 inline-flex items-center gap-1 shadow-sm">
+          <i data-lucide="user" class="w-3 h-3 text-slate-500"></i>
+          Suite #${player.rank}
+        </span>
+      `;
+      rankClass = "bg-slate-800 text-slate-400 border border-slate-700";
       rowHighlightClass = 'hover:bg-slate-800/40';
     }
   } else if (isPodium) {
@@ -1019,6 +1068,7 @@ function renderPlayerRow(player) {
     let ascLvl = 0;
     let ascStage = 0;
     let techLvl = 0;
+    let fusionsCount = 0;
 
     if (state.rankingCategory === 'skills') {
       resCount = player.skills_tickets;
@@ -1032,12 +1082,14 @@ function renderPlayerRow(player) {
       ascLvl = player.eggs_ascension;
       ascStage = player.eggs_ascension_level;
       techLvl = player.eggs_tech_level;
+      fusionsCount = player.eggs_fusions || 0;
     } else if (state.rankingCategory === 'mount') {
       resCount = player.mount_keys;
       iconUrl = './Monture FM.png';
       ascLvl = player.mount_ascension;
       ascStage = player.mount_ascension_level;
       techLvl = player.mount_tech_level;
+      fusionsCount = player.mount_fusions || 0;
     }
 
     const sim = player.sim || {};
@@ -1071,6 +1123,10 @@ function renderPlayerRow(player) {
           <span class="text-amber-300 font-semibold">Asc: ${ascLvl} (Niv: ${ascStage})</span>
           <span class="text-slate-500">•</span>
           <span class="text-purple-300">Tech: ${techLvl}</span>
+          ${(state.rankingCategory === 'eggs' || state.rankingCategory === 'mount') ? `
+            <span class="text-slate-500">•</span>
+            <span class="text-slate-300">Fusions: <strong class="text-purple-300">${fusionsCount}</strong></span>
+          ` : ''}
           <span class="text-slate-500">•</span>
           <span class="text-emerald-400 font-semibold">+${sim.levelsGained || 0} niv.</span>
           <span class="text-slate-500">•</span>

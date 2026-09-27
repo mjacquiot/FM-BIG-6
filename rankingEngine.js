@@ -268,14 +268,38 @@ export function isPlayerMaxed(player, category) {
 }
 
 /**
+ * Vérifie si un joueur a coché le souhait d'ascension pour une ressource donnée
+ */
+export function wantsAscensionForCategory(player, category) {
+  if (!player) return false;
+  const slots = Array.isArray(player.available_slots) ? player.available_slots : [];
+  if (category === 'skills') {
+    return Boolean(player.want_skills_ascension || slots.includes('asc_skills') || slots.includes('skills'));
+  }
+  if (category === 'eggs') {
+    return Boolean(player.want_eggs_ascension || slots.includes('asc_eggs') || slots.includes('eggs'));
+  }
+  if (category === 'mount') {
+    return Boolean(player.want_mount_ascension || slots.includes('asc_mount') || slots.includes('mount'));
+  }
+  return false;
+}
+
+/**
+ * Vérifie si un joueur est disponible pour le rush de nuit (01h00 - 02h00)
+ */
+export function isRushAvailable(player) {
+  if (!player) return false;
+  const slots = Array.isArray(player.available_slots) ? player.available_slots : [];
+  return slots.includes('rush');
+}
+
+/**
  * Compare deux joueurs selon les critères d'Ordre d'ascension :
- * Règle utilisateur : "Si un joueur a atteint le niveau 100 ascension 3,
- * il faudra le descendre en toute fin de la liste car il ne pourra pas réaliser d'autres ascensions dans cette ressource."
- * 1) Joueurs non-maxés d'abord, joueurs maxés à la fin de la liste
- * 2) Nombre de ressources DESC
- * 3) Niveau de technologie DESC
- * 4) Niveau d'ascension DESC
- * 5) Niveau atteint dans l'ascension DESC
+ * 1) Joueurs non-maxés d'abord, joueurs maxés (Ascension 3 Niv 100) en fin de liste
+ * 2) Priorité 1 : avoir coché "Je veux faire mon ascension" dans la ressource
+ * 3) Priorité 2 : Points de Guerre prévisionnels DESC
+ * 4) Départage : Ressources résiduelles DESC, puis Technologie DESC
  */
 function compareOrdreAscension(a, b, category) {
   const maxedA = isPlayerMaxed(a, category);
@@ -286,35 +310,37 @@ function compareOrdreAscension(a, b, category) {
     return maxedA ? 1 : -1;
   }
 
-  let resA, resB, techA, techB, ascA, ascB, lvlA, lvlB;
+  // Priorité 1 : Coche "Je veux faire mon ascension"
+  const wantA = wantsAscensionForCategory(a, category);
+  const wantB = wantsAscensionForCategory(b, category);
+  if (wantA !== wantB) {
+    return wantB ? 1 : -1;
+  }
 
+  // Priorité 2 : Points de Guerre prévisionnels DESC
+  const warA = a.warPoints !== undefined ? a.warPoints : 0;
+  const warB = b.warPoints !== undefined ? b.warPoints : 0;
+  if (warB !== warA) return warB - warA;
+
+  // Départage : Ressources DESC
+  let resA = 0, resB = 0, techA = 0, techB = 0;
   switch (category) {
     case 'skills':
       resA = a.skills_tickets; resB = b.skills_tickets;
       techA = a.skills_tech_level; techB = b.skills_tech_level;
-      ascA = a.skills_ascension; ascB = b.skills_ascension;
-      lvlA = a.skills_ascension_level; lvlB = b.skills_ascension_level;
       break;
     case 'eggs':
       resA = a.eggs_count; resB = b.eggs_count;
       techA = a.eggs_tech_level; techB = b.eggs_tech_level;
-      ascA = a.eggs_ascension; ascB = b.eggs_ascension;
-      lvlA = a.eggs_ascension_level; lvlB = b.eggs_ascension_level;
       break;
     case 'mount':
       resA = a.mount_keys; resB = b.mount_keys;
       techA = a.mount_tech_level; techB = b.mount_tech_level;
-      ascA = a.mount_ascension; ascB = b.mount_ascension;
-      lvlA = a.mount_ascension_level; lvlB = b.mount_ascension_level;
       break;
-    default:
-      return 0;
   }
 
   if (resB !== resA) return resB - resA;
   if (techB !== techA) return techB - techA;
-  if (ascB !== ascA) return ascB - ascA;
-  if (lvlB !== lvlA) return lvlB - lvlA;
 
   return new Date(a.created_at || 0) - new Date(b.created_at || 0);
 }
@@ -464,14 +490,14 @@ export function getGeneralRawRanking(players, limit = 50) {
 
 /**
  * Construit la structure de l'Ordre d'Ascension avec :
- * - Les 4 Élus du Rush (Matin, Midi, Soir, Rush)
- * - La suite du classement (à partir du 5ème)
- * - Les Points de Guerre calculés pour chaque joueur
+ * - Les Élus (en jaune doré) : tous ceux ayant coché "Je veux faire mon ascension", classés par Points de Guerre
+ * - La suite du classement (non doré) : ceux n'ayant pas coché l'ascension, classés par Points de Guerre
+ * - Les joueurs au palier maximum (Ascension 3 Niv 100) en toute fin de liste
  */
 export function getOrdreAscensionWithElus(players, category) {
-  if (category !== 'skills' && category !== 'eggs' && category !== 'mount') return { elus: [], suite: [] };
+  if (category !== 'skills' && category !== 'eggs' && category !== 'mount') return { elus: [], suite: [], allSorted: [] };
 
-  // 1. Enrichir chaque joueur avec sa simulation (plafonnée à 1 ascension) et ses points de guerre
+  // 1. Enrichir chaque joueur avec sa simulation (1 ascension max), ses points de guerre et ses drapeaux
   const enriched = players.map(p => {
     let res = 0, asc = 0, lvl = 0, tech = 0, fusions = 0;
 
@@ -483,98 +509,62 @@ export function getOrdreAscensionWithElus(players, category) {
       res = p.mount_keys; asc = p.mount_ascension; lvl = p.mount_ascension_level; tech = p.mount_tech_level; fusions = p.mount_fusions || 0;
     }
 
-    // Simulation avec règle spécifique à l'ordre d'ascension : 1 seule ascension max (isOrdreAscension = true)
+    // Simulation avec règle 1 seule ascension max pour le rush (isOrdreAscension = true)
     const sim = simulateRealProgression(category, asc, lvl, tech, res, true);
     const warPoints = calculateWarPoints(category, sim.levelsGained, fusions);
     const maxed = isPlayerMaxed(p, category);
+    const wantAsc = wantsAscensionForCategory(p, category);
+    const rushActive = isRushAvailable(p);
 
     return {
       ...p,
       sim,
       warPoints,
       isMaxed: maxed,
+      wantsAscension: wantAsc,
+      isRushAvailable: rushActive,
       available_slots: Array.isArray(p.available_slots) ? p.available_slots : []
     };
   });
 
-  // 2. Trier tous les joueurs par ordre d'ascension (non-maxés d'abord avec ressources DESC, maxés en fin de liste)
-  const sortedPlayers = [...enriched].sort((a, b) => compareOrdreAscension(a, b, category));
+  // 2. Séparer en 3 groupes :
+  // Groupe 1 : Non-maxés ET ayant coché "Je veux faire mon ascension" (Les Élus)
+  // Groupe 2 : Non-maxés ET n'ayant PAS coché l'ascension (Suite / Remplaçants)
+  // Groupe 3 : Joueurs maxés (Ascension 3, Niveau 100)
+  const elusRaw = enriched.filter(p => !p.isMaxed && p.wantsAscension);
+  const suiteRaw = enriched.filter(p => !p.isMaxed && !p.wantsAscension);
+  const maxedRaw = enriched.filter(p => p.isMaxed);
 
-  // 3. Déterminer les 4 Élus du Rush (Matin, Midi, Soir, Rush)
-  // Définition des 4 créneaux
-  const slotsConfig = [
-    { key: 'matin', label: 'Matin (2h - 9h)', icon: 'sunrise', order: 1 },
-    { key: 'midi', label: 'Midi (9h - 15h00)', icon: 'sun', order: 2 },
-    { key: 'soir', label: 'Soir (15h00 - 01h00)', icon: 'sunset', order: 3 },
-    { key: 'rush', label: 'Rush (01h00 - 02h00)', icon: 'zap', order: 4 }
-  ];
+  // Trier les Élus par Points de Guerre DESC (avec départages ressources/tech)
+  elusRaw.sort((a, b) => compareOrdreAscension(a, b, category));
 
-  const selectedElusIds = new Set();
-  const elusMap = new Map(); // key -> élu
+  // Trier la suite par Points de Guerre DESC (avec départages ressources/tech)
+  suiteRaw.sort((a, b) => compareOrdreAscension(a, b, category));
 
-  // Compter le nombre de candidats non-maxés pour chaque créneau
-  const slotCandidates = new Map();
-  slotsConfig.forEach(s => {
-    const candidates = sortedPlayers.filter(p => !p.isMaxed && p.available_slots.includes(s.key));
-    slotCandidates.set(s.key, candidates);
-  });
+  // Trier les maxés par ressources DESC
+  maxedRaw.sort((a, b) => compareOrdreAscension(a, b, category));
 
-  // Trier les créneaux par rareté des candidats (les créneaux les plus contraints d'abord)
-  const slotsSortedByRarity = [...slotsConfig].sort((a, b) => {
-    const countA = slotCandidates.get(a.key)?.length || 0;
-    const countB = slotCandidates.get(b.key)?.length || 0;
-    return countA - countB;
-  });
+  // Attribuer les rangs et priorités
+  const elus = elusRaw.map((p, idx) => ({
+    ...p,
+    rank: idx + 1,
+    priorityNumber: idx + 1,
+    isElu: true
+  }));
 
-  // Première passe : affecter le meilleur candidat non-maxé ayant coché le créneau
-  slotsSortedByRarity.forEach(s => {
-    const candidates = slotCandidates.get(s.key) || [];
-    const bestCandidate = candidates.find(c => !selectedElusIds.has(c.id));
-    if (bestCandidate) {
-      selectedElusIds.add(bestCandidate.id);
-      elusMap.set(s.key, {
-        ...bestCandidate,
-        eluSlot: s,
-        assignedBySlot: true
-      });
-    }
-  });
-
-  // Deuxième passe (règle utilisateur) : pour tout créneau restant sans candidat direct,
-  // attribuer la place au joueur suivant non-maxé avec le plus de ressources
-  slotsConfig.forEach(s => {
-    if (!elusMap.has(s.key)) {
-      const fallbackPlayer = sortedPlayers.find(p => !selectedElusIds.has(p.id) && !p.isMaxed);
-      if (fallbackPlayer) {
-        selectedElusIds.add(fallbackPlayer.id);
-        elusMap.set(s.key, {
-          ...fallbackPlayer,
-          eluSlot: s,
-          assignedBySlot: false // Attribué par ressources
-        });
-      }
-    }
-  });
-
-  // Formater la liste des élus dans l'ordre chronologique des créneaux
-  const elus = [];
-  slotsConfig.forEach(s => {
-    if (elusMap.has(s.key)) {
-      elus.push(elusMap.get(s.key));
-    }
-  });
-
-  // 4. Suite du classement : tous les joueurs non élus, classés par ressources décroissantes (maxés en fin de liste)
-  const remainingPlayers = sortedPlayers.filter(p => !selectedElusIds.has(p.id));
-  const suite = remainingPlayers.slice(0, 50).map((p, idx) => ({
+  const suiteList = [...suiteRaw, ...maxedRaw];
+  const suite = suiteList.map((p, idx) => ({
     ...p,
     rank: elus.length + idx + 1,
-    priorityNumber: idx + 1 // Priorité 1, Priorité 2, etc.
+    priorityNumber: idx + 1,
+    isElu: false
   }));
+
+  const allSorted = [...elus, ...suite];
 
   return {
     elus,
     suite,
-    allSorted: sortedPlayers
+    allSorted
   };
 }

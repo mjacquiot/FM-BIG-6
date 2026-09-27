@@ -106,20 +106,46 @@ export async function upsertPlayer(playerData) {
     forge_tech_level: Number(playerData.forge_tech_level) || 0
   };
 
+  // Payload étendu si les colonnes dédiées existent dans Supabase
+  const extendedPayload = {
+    ...payload,
+    want_skills_ascension: Boolean(playerData.want_skills_ascension),
+    want_eggs_ascension: Boolean(playerData.want_eggs_ascension),
+    want_mount_ascension: Boolean(playerData.want_mount_ascension)
+  };
+
   let response;
-  if (existing && existing.id) {
-    // Mise à jour de la ligne existante
-    response = await supabase
-      .from("fm_big6_players")
-      .update(payload)
-      .eq("id", existing.id)
-      .select();
-  } else {
-    // Nouvelle inscription
-    response = await supabase
-      .from("fm_big6_players")
-      .insert([payload])
-      .select();
+  try {
+    if (existing && existing.id) {
+      response = await supabase
+        .from("fm_big6_players")
+        .update(extendedPayload)
+        .eq("id", existing.id)
+        .select();
+    } else {
+      response = await supabase
+        .from("fm_big6_players")
+        .insert([extendedPayload])
+        .select();
+    }
+  } catch (e) {
+    // En cas d'erreur réseau ou autre
+  }
+
+  // Repli automatique si les colonnes dédiées ne sont pas encore créées en base (code PGRST204)
+  if (!response || response.error) {
+    if (existing && existing.id) {
+      response = await supabase
+        .from("fm_big6_players")
+        .update(payload)
+        .eq("id", existing.id)
+        .select();
+    } else {
+      response = await supabase
+        .from("fm_big6_players")
+        .insert([payload])
+        .select();
+    }
   }
 
   if (response.error) {

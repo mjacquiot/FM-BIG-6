@@ -127,11 +127,11 @@
       <!-- Barre de progression des étapes -->
       <div class="glass-card rounded-2xl p-3 md:p-4">
         <div class="flex items-center justify-between text-xs font-medium text-slate-400 mb-2">
-          <span id="step-indicator-text">Étape 1 sur 5 : Pseudo</span>
-          <span id="step-percentage" class="text-brand-400 font-bold">20%</span>
+          <span id="step-indicator-text">Étape 1 sur 6 : Pseudo</span>
+          <span id="step-percentage" class="text-brand-400 font-bold">17%</span>
         </div>
         <div class="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
-          <div id="progress-bar-fill" class="bg-gradient-to-r from-brand-500 to-emerald-400 h-full rounded-full transition-all duration-300 w-1/5"></div>
+          <div id="progress-bar-fill" class="bg-gradient-to-r from-brand-500 to-emerald-400 h-full rounded-full transition-all duration-300 w-1/6"></div>
         </div>
 
         <!-- Puces des étapes -->
@@ -143,21 +143,26 @@
           <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
           <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="1">
             <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">2</span>
-            <span class="hidden sm:inline">Compétences</span>
+            <span class="hidden sm:inline">Rush & Ascension</span>
           </button>
           <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
           <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="2">
             <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">3</span>
-            <span class="hidden sm:inline">Œufs</span>
+            <span class="hidden sm:inline">Compétences</span>
           </button>
           <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
           <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="3">
             <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">4</span>
-            <span class="hidden sm:inline">Monture</span>
+            <span class="hidden sm:inline">Œufs</span>
           </button>
           <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
           <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="4">
             <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">5</span>
+            <span class="hidden sm:inline">Monture</span>
+          </button>
+          <div class="h-0.5 flex-1 bg-slate-800 mx-1"></div>
+          <button type="button" class="step-dot flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500" data-step="5">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs">6</span>
             <span class="hidden sm:inline">Forge</span>
           </button>
         </div>
@@ -195,55 +200,6 @@
 
             <!-- Message d'information dynamique si joueur déjà trouvé -->
             <div id="pseudo-status-msg" class="hidden p-3 rounded-xl text-xs flex items-center gap-2"></div>
-
-            <!-- Créneaux horaires de connexion habituelles et souhaitées -->
-            <div class="space-y-2 pt-2 border-t border-slate-800/80">
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                Horaires de connexion habituelles et souhaitées
-              </label>
-              <p class="text-[11px] text-slate-400">Cochez une ou plusieurs plages horaires où vous êtes actif :</p>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-amber-500/50 transition select-none">
-                  <input type="checkbox" name="slot-choice" value="matin" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-950 border-slate-700">
-                  <div class="text-xs">
-                    <div class="font-bold text-white flex items-center gap-1.5">
-                      <span>🌅</span> <span>Matin</span>
-                    </div>
-                    <div class="text-[11px] text-amber-400/80 font-medium">2h - 9h</div>
-                  </div>
-                </label>
-
-                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-amber-500/50 transition select-none">
-                  <input type="checkbox" name="slot-choice" value="midi" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-950 border-slate-700">
-                  <div class="text-xs">
-                    <div class="font-bold text-white flex items-center gap-1.5">
-                      <span>☀️</span> <span>Midi</span>
-                    </div>
-                    <div class="text-[11px] text-yellow-400/80 font-medium">9h - 15h00</div>
-                  </div>
-                </label>
-
-                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-purple-500/50 transition select-none">
-                  <input type="checkbox" name="slot-choice" value="soir" class="w-4 h-4 rounded text-purple-500 focus:ring-purple-500 bg-slate-950 border-slate-700">
-                  <div class="text-xs">
-                    <div class="font-bold text-white flex items-center gap-1.5">
-                      <span>🌙</span> <span>Soir</span>
-                    </div>
-                    <div class="text-[11px] text-purple-400/80 font-medium">15h00 - 01h00</div>
-                  </div>
-                </label>
-
-                <label class="slot-checkbox-label flex items-center gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 cursor-pointer hover:border-red-500/50 transition select-none">
-                  <input type="checkbox" name="slot-choice" value="rush" class="w-4 h-4 rounded text-red-500 focus:ring-red-500 bg-slate-950 border-slate-700">
-                  <div class="text-xs">
-                    <div class="font-bold text-white flex items-center gap-1.5">
-                      <span>⚡</span> <span>Rush</span>
-                    </div>
-                    <div class="text-[11px] text-red-400/80 font-medium">01h00 - 02h00</div>
-                  </div>
-                </label>
-              </div>
-            </div>
           </div>
 
           <!-- Navigation Étape 0 -->
@@ -255,8 +211,110 @@
           </div>
         </div>
 
-        <!-- ================= ÉTAPE 1 : COMPÉTENCES ================= -->
+        <!-- ================= ÉTAPE 1 : RUSH & SOUHAITS D'ASCENSION ================= -->
         <div id="step-panel-1" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+          <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
+            <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2.5 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10 text-amber-400">
+              <i data-lucide="sparkles" class="w-8 h-8"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Étape Intermédiaire</span>
+              </div>
+              <h2 class="text-xl md:text-2xl font-black font-heading text-white">Disponibilité & Ascension</h2>
+              <p class="text-xs text-slate-400">Précisez votre disponibilité au rush et vos souhaits d'ascension pour le classement prioritaire</p>
+            </div>
+          </div>
+
+          <div class="space-y-6 max-w-xl mx-auto">
+            <!-- 1. Disponibilité au Rush -->
+            <div class="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                Disponibilité en jeu
+              </label>
+              <label class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-red-500/60 cursor-pointer transition select-none group">
+                <input type="checkbox" id="cb-rush-available" class="w-5 h-5 rounded text-red-500 focus:ring-red-500 bg-slate-900 border-slate-700 cursor-pointer">
+                <div class="text-xs">
+                  <div class="font-bold text-white flex items-center gap-1.5 group-hover:text-red-300 transition">
+                    <span>⚡</span> <span>Dispo au rush du soir (01h00 - 02h00)</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">Permet d'informer l'organisation de votre présence nocturne</div>
+                </div>
+              </label>
+            </div>
+
+            <!-- 2. Souhaits d'Ascension (Priorités) -->
+            <div class="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                  Souhaits d'Ascension (Priorité dans l'Ordre)
+                </label>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Cochez les ressources pour lesquelles vous souhaitez passer votre ascension. Vous serez prioritaire (<strong class="text-amber-300">Élu</strong>) dans l'ordre d'ascension, classé selon vos Points de Guerre prévisionnels !
+                </p>
+              </div>
+
+              <div class="space-y-2.5 pt-1">
+                <!-- Case Compétence -->
+                <label class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-blue-500/60 cursor-pointer transition select-none group">
+                  <input type="checkbox" id="cb-want-skills" class="w-5 h-5 rounded text-blue-500 focus:ring-blue-500 bg-slate-900 border-slate-700 cursor-pointer">
+                  <div class="w-8 h-8 rounded-xl bg-blue-950/80 border border-blue-500/30 p-1 flex items-center justify-center shrink-0">
+                    <img src="./Tickets FM.png" alt="Tickets FM" class="w-full h-full object-contain">
+                  </div>
+                  <div class="text-xs">
+                    <div class="font-bold text-white group-hover:text-blue-300 transition">
+                      Je veux faire mon ascension compétence
+                    </div>
+                    <div class="text-[11px] text-slate-400">Prioritaire pour les tickets de compétence</div>
+                  </div>
+                </label>
+
+                <!-- Case Œuf -->
+                <label class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-amber-500/60 cursor-pointer transition select-none group">
+                  <input type="checkbox" id="cb-want-eggs" class="w-5 h-5 rounded text-amber-500 focus:ring-amber-500 bg-slate-900 border-slate-700 cursor-pointer">
+                  <div class="w-8 h-8 rounded-xl bg-amber-950/80 border border-amber-500/30 p-1 flex items-center justify-center shrink-0">
+                    <img src="./oeufs FM.png" alt="oeufs FM" class="w-full h-full object-contain">
+                  </div>
+                  <div class="text-xs">
+                    <div class="font-bold text-white group-hover:text-amber-300 transition">
+                      Je veux faire mon ascension Œuf
+                    </div>
+                    <div class="text-[11px] text-slate-400">Prioritaire pour les œufs de compagnon</div>
+                  </div>
+                </label>
+
+                <!-- Case Monture -->
+                <label class="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-cyan-500/60 cursor-pointer transition select-none group">
+                  <input type="checkbox" id="cb-want-mount" class="w-5 h-5 rounded text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700 cursor-pointer">
+                  <div class="w-8 h-8 rounded-xl bg-cyan-950/80 border border-cyan-500/30 p-1 flex items-center justify-center shrink-0">
+                    <img src="./Monture FM.png" alt="Monture FM" class="w-full h-full object-contain">
+                  </div>
+                  <div class="text-xs">
+                    <div class="font-bold text-white group-hover:text-cyan-300 transition">
+                      Je veux faire mon ascension monture
+                    </div>
+                    <div class="text-[11px] text-slate-400">Prioritaire pour les clés de monture</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Navigation Étape 1 -->
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800 max-w-xl mx-auto">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="0">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Précédent</span>
+            </button>
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="2">
+              <span>Suivant</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- ================= ÉTAPE 2 : COMPÉTENCES ================= -->
+        <div id="step-panel-2" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
           <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
             <div class="w-14 h-14 rounded-2xl bg-blue-950/80 border border-blue-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/10">
               <img src="./Tickets FM.png" alt="Tickets FM" class="w-full h-full object-contain">
@@ -353,21 +411,21 @@
             </div>
           </div>
 
-          <!-- Navigation Étape 1 -->
+          <!-- Navigation Étape 2 -->
           <div class="flex items-center justify-between pt-4 border-t border-slate-800">
-            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="0">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="1">
               <i data-lucide="arrow-left" class="w-4 h-4"></i>
               <span>Précédent</span>
             </button>
-            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="2">
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="3">
               <span>Suivant</span>
               <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
 
-        <!-- ================= ÉTAPE 2 : ŒUFS ================= -->
-        <div id="step-panel-2" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+        <!-- ================= ÉTAPE 3 : ŒUFS ================= -->
+        <div id="step-panel-3" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
           <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
             <div class="w-14 h-14 rounded-2xl bg-amber-950/80 border border-amber-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
               <img src="./oeufs FM.png" alt="oeufs FM" class="w-full h-full object-contain">
@@ -487,21 +545,21 @@
             </div>
           </div>
 
-          <!-- Navigation Étape 2 -->
+          <!-- Navigation Étape 3 -->
           <div class="flex items-center justify-between pt-4 border-t border-slate-800">
-            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="1">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="2">
               <i data-lucide="arrow-left" class="w-4 h-4"></i>
               <span>Précédent</span>
             </button>
-            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="3">
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="4">
               <span>Suivant</span>
               <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
 
-        <!-- ================= ÉTAPE 3 : MONTURE ================= -->
-        <div id="step-panel-3" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+        <!-- ================= ÉTAPE 4 : MONTURE ================= -->
+        <div id="step-panel-4" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
           <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
             <div class="w-14 h-14 rounded-2xl bg-cyan-950/80 border border-cyan-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/10">
               <img src="./Monture FM.png" alt="Monture FM" class="w-full h-full object-contain">
@@ -621,21 +679,21 @@
             </div>
           </div>
 
-          <!-- Navigation Étape 3 -->
+          <!-- Navigation Étape 4 -->
           <div class="flex items-center justify-between pt-4 border-t border-slate-800">
-            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="2">
+            <button type="button" class="btn-prev-step px-5 py-3 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="3">
               <i data-lucide="arrow-left" class="w-4 h-4"></i>
               <span>Précédent</span>
             </button>
-            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="4">
+            <button type="button" class="btn-next-step px-6 py-3 rounded-2xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center gap-2 transition" data-to="5">
               <span>Suivant</span>
               <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
 
-        <!-- ================= ÉTAPE 4 : FORGE ================= -->
-        <div id="step-panel-4" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
+        <!-- ================= ÉTAPE 5 : FORGE ================= -->
+        <div id="step-panel-5" class="step-panel step-container hidden glass-card rounded-3xl p-5 md:p-8 space-y-6">
           <div class="flex items-center gap-4 pb-4 border-b border-slate-800">
             <div class="w-14 h-14 rounded-2xl bg-orange-950/80 border border-orange-500/40 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/10">
               <img src="./Forge FM.png" alt="Forge FM" class="w-full h-full object-contain">
@@ -715,9 +773,9 @@
             <input type="hidden" id="input-forge-tech-level" value="0">
           </div>
 
-          <!-- Navigation Étape 4 (Validation Finale) -->
+          <!-- Navigation Étape 5 (Validation Finale) -->
           <div class="flex items-center justify-between pt-4 border-t border-slate-800">
-            <button type="button" class="btn-prev-step px-5 py-3.5 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="3">
+            <button type="button" class="btn-prev-step px-5 py-3.5 rounded-2xl font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition" data-to="4">
               <i data-lucide="arrow-left" class="w-4 h-4"></i>
               <span>Précédent</span>
             </button>
@@ -816,16 +874,19 @@
         <span id="ranking-criteria-text">Critères du classement</span>
       </div>
 
-      <!-- Section spéciale : Les 4 Élus du Rush (visible en Ordre d'Ascension) -->
+      <!-- Section spéciale : Les Élus de l'Ascension (visible en Ordre d'Ascension) -->
       <div id="elus-rush-container" class="hidden space-y-3">
         <div class="flex items-center justify-between px-1">
           <h3 class="text-sm font-black uppercase tracking-wider text-amber-300 flex items-center gap-2">
             <i data-lucide="crown" class="w-4 h-4 text-amber-400"></i>
-            <span>Les 4 Élus du Rush</span>
+            <span>Les Élus de l'Ascension</span>
           </h3>
-          <span class="text-[11px] text-slate-400 font-medium">1 élu par créneau horaire</span>
+          <span class="text-[11px] text-amber-400/90 font-semibold flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            Priorité 1 : Choix d'ascension coché
+          </span>
         </div>
-        <div id="elus-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div id="elus-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           <!-- Injecté dynamiquement par app.js -->
         </div>
       </div>

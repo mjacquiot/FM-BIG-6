@@ -17,6 +17,16 @@ ALTER TABLE public.fm_big6_players
 ADD COLUMN IF NOT EXISTS mount_fusions INTEGER NOT NULL DEFAULT 0 
 CHECK (mount_fusions >= 0 AND mount_fusions <= 2000);
 
+-- Nouveaux drapeaux de souhaits d'ascension
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS want_skills_ascension BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS want_eggs_ascension BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS want_mount_ascension BOOLEAN NOT NULL DEFAULT false;
+
 -- ------------------------------------------------------------------------------
 -- B. SI VOUS PARTEZ DE ZÉRO (NOUVELLE INSTALLATION)
 -- ------------------------------------------------------------------------------
