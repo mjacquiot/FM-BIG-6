@@ -76,8 +76,9 @@ export async function upsertPlayer(playerData) {
 
   const normalizedPseudo = playerData.pseudo.trim().toLowerCase();
   
-  // Vérifions d'abord si le joueur existe déjà
-  const existing = await getPlayerByPseudo(normalizedPseudo);
+  // Vérifions d'abord si le joueur existe déjà par pseudo ou ID
+  const existing = playerData.id ? null : await getPlayerByPseudo(normalizedPseudo);
+  const targetId = playerData.id || (existing ? existing.id : null);
 
   const payload = {
     available_slots: Array.isArray(playerData.available_slots) ? playerData.available_slots : [],
@@ -116,11 +117,11 @@ export async function upsertPlayer(playerData) {
 
   let response;
   try {
-    if (existing && existing.id) {
+    if (targetId) {
       response = await supabase
         .from("fm_big6_players")
         .update(extendedPayload)
-        .eq("id", existing.id)
+        .eq("id", targetId)
         .select();
     } else {
       response = await supabase
@@ -134,11 +135,11 @@ export async function upsertPlayer(playerData) {
 
   // Repli automatique si les colonnes dédiées ne sont pas encore créées en base (code PGRST204)
   if (!response || response.error) {
-    if (existing && existing.id) {
+    if (targetId) {
       response = await supabase
         .from("fm_big6_players")
         .update(payload)
-        .eq("id", existing.id)
+        .eq("id", targetId)
         .select();
     } else {
       response = await supabase

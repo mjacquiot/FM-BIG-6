@@ -557,7 +557,10 @@ async function handleSubmitInscription() {
   if (document.getElementById('cb-want-eggs')?.checked) selectedSlots.push('asc_eggs');
   if (document.getElementById('cb-want-mount')?.checked) selectedSlots.push('asc_mount');
 
+  const isEditingAsAdmin = Boolean(state.isAdmin && state.editingPlayerId);
+
   const playerData = {
+    id: state.editingPlayerId || undefined,
     available_slots: selectedSlots,
     want_skills_ascension: document.getElementById('cb-want-skills')?.checked || false,
     want_eggs_ascension: document.getElementById('cb-want-eggs')?.checked || false,
@@ -596,11 +599,20 @@ async function handleSubmitInscription() {
     // Mettre à jour l'écran de succès
     const successPseudoEl = document.getElementById('success-summary-pseudo');
     if (successPseudoEl) {
-      successPseudoEl.innerHTML = `Les données du joueur <strong class="text-emerald-400">${escapeHtml(pseudo)}</strong> ont été enregistrées avec succès.`;
+      if (isEditingAsAdmin) {
+        successPseudoEl.innerHTML = `Le profil du joueur <strong class="text-emerald-400">${escapeHtml(pseudo)}</strong> a été modifié et mis à jour avec succès par l'administrateur.`;
+      } else {
+        successPseudoEl.innerHTML = `Les données du joueur <strong class="text-emerald-400">${escapeHtml(pseudo)}</strong> ont été enregistrées avec succès.`;
+      }
     }
 
+    // Réinitialiser le mode édition une fois terminé
+    state.editingPlayerId = null;
+    const banner = document.getElementById('admin-editing-banner');
+    if (banner) banner.classList.add('hidden');
+
     goToStep(6);
-    showToast(`Scores enregistrés pour ${pseudo} !`, "success");
+    showToast(isEditingAsAdmin ? `Profil de ${pseudo} mis à jour !` : `Scores enregistrés pour ${pseudo} !`, "success");
 
     // Recharger la liste en tâche de fond
     await loadData(false);
@@ -797,7 +809,7 @@ function renderRankings() {
     }
 
     initLucide();
-    attachAdminDeleteListeners();
+    attachAdminListeners();
     return;
   }
 
@@ -841,23 +853,129 @@ function renderRankings() {
 
   rowsContainer.innerHTML = displayList.map(player => renderPlayerRow(player)).join('');
   initLucide();
-  attachAdminDeleteListeners();
+  attachAdminListeners();
 }
 
 /**
- * Attache les écouteurs de suppression admin
+ * Lance le mode édition pour l'administrateur
+ * Charge l'ensemble des données d'un joueur dans le formulaire et bascule sur l'onglet d'inscription
  */
-function attachAdminDeleteListeners() {
-  if (state.isAdmin) {
-    document.querySelectorAll('.btn-admin-delete-row').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const playerId = btn.dataset.playerId;
-        const playerPseudo = btn.dataset.playerPseudo;
-        confirmDeletePlayer(playerId, playerPseudo);
-      });
-    });
+function startAdminEdit(playerId) {
+  if (!state.isAdmin) return;
+  const player = state.players.find(p => String(p.id) === String(playerId));
+  if (!player) {
+    showToast("Profil joueur introuvable", "error");
+    return;
   }
+
+  state.editingPlayerId = player.id;
+
+  // Pré-remplir le pseudo
+  const inputPseudo = document.getElementById('input-pseudo');
+  if (inputPseudo) inputPseudo.value = player.pseudo;
+
+  // Pré-remplir l'intégralité des 6 étapes
+  fillFormWithPlayerData(player);
+
+  // Afficher la bannière d'édition admin
+  const banner = document.getElementById('admin-editing-banner');
+  const pseudoDisplay = document.getElementById('admin-editing-pseudo-display');
+  if (banner) banner.classList.remove('hidden');
+  if (pseudoDisplay) pseudoDisplay.textContent = player.pseudo;
+
+  // Cacher le message d'info standard du pseudo
+  const statusMsg = document.getElementById('pseudo-status-msg');
+  if (statusMsg) statusMsg.classList.add('hidden');
+
+  // Basculer sur l'onglet formulaire
+  switchTab('inscription');
+
+  // Aller à l'étape 0 pour afficher le pseudo et permettre la navigation libre sur les 6 étapes
+  goToStep(0);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  showToast(`Profil de ${player.pseudo} chargé pour modification`, "info");
+}
+
+/**
+ * Annule le mode édition administrateur et réinitialise le formulaire
+ */
+function cancelAdminEdit() {
+  state.editingPlayerId = null;
+
+  const banner = document.getElementById('admin-editing-banner');
+  if (banner) banner.classList.add('hidden');
+
+  const inputPseudo = document.getElementById('input-pseudo');
+  if (inputPseudo) inputPseudo.value = '';
+
+  const statusMsg = document.getElementById('pseudo-status-msg');
+  if (statusMsg) {
+    statusMsg.classList.add('hidden');
+    statusMsg.innerHTML = '';
+  }
+
+  // Réinitialiser les champs à zéro
+  fillFormWithPlayerData({
+    skills_tickets: 0,
+    skills_ascension: 0,
+    skills_ascension_level: 0,
+    skills_tech_level: 0,
+    eggs_count: 0,
+    eggs_ascension: 0,
+    eggs_ascension_level: 0,
+    eggs_tech_level: 0,
+    eggs_fusions: 0,
+    mount_keys: 0,
+    mount_ascension: 0,
+    mount_ascension_level: 0,
+    mount_tech_level: 0,
+    mount_fusions: 0,
+    forge_hammers: 0,
+    forge_ascension: 0,
+    forge_ascension_level: 0,
+    forge_tech_level: 0,
+    available_slots: []
+  });
+
+  goToStep(0);
+  showToast("Mode édition quitté", "info");
+}
+
+/**
+ * Attache les écouteurs d'édition et suppression admin
+ */
+function attachAdminListeners() {
+  if (!state.isAdmin) return;
+
+  // 1. Boutons d'édition admin
+  document.querySelectorAll('.btn-admin-edit-row').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const playerId = btn.dataset.playerId;
+      if (playerId) startAdminEdit(playerId);
+    });
+  });
+
+  // 2. Clic direct sur une ligne, carte ou podium modifiable
+  document.querySelectorAll('.admin-editable-row').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-admin-delete-row')) return;
+      if (e.target.closest('.btn-admin-edit-row')) return;
+      const playerId = el.dataset.playerId;
+      if (playerId) startAdminEdit(playerId);
+    });
+  });
+
+  // 3. Boutons de suppression admin
+  document.querySelectorAll('.btn-admin-delete-row').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const playerId = btn.dataset.playerId;
+      const playerPseudo = btn.dataset.playerPseudo;
+      confirmDeletePlayer(playerId, playerPseudo);
+    });
+  });
 }
 
 /**
@@ -910,15 +1028,24 @@ function renderEluCard(elu, category) {
     ? '<span class="slot-badge slot-badge-rush font-semibold text-[10px] inline-flex items-center gap-1" title="Disponible pour le rush nocturne 01h00 - 02h00">⚡ Rush 01h-02h</span>'
     : '';
 
-  const adminDeleteBtn = state.isAdmin ? `
-    <button type="button" class="btn-admin-delete-row p-1 text-slate-500 hover:text-red-400 transition"
-      data-player-id="${elu.id}" data-player-pseudo="${escapeHtml(elu.pseudo)}" title="Supprimer ce joueur (Admin)">
-      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-    </button>
+  const adminBtns = state.isAdmin ? `
+    <div class="flex items-center gap-0.5">
+      <button type="button" class="btn-admin-edit-row p-1 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded transition"
+        data-player-id="${elu.id}" data-player-pseudo="${escapeHtml(elu.pseudo)}" title="Modifier ce profil (Admin)">
+        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+      </button>
+      <button type="button" class="btn-admin-delete-row p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition"
+        data-player-id="${elu.id}" data-player-pseudo="${escapeHtml(elu.pseudo)}" title="Supprimer ce joueur (Admin)">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
   ` : '';
 
+  const adminCardClass = state.isAdmin ? 'admin-editable-row' : '';
+  const adminCardTitle = state.isAdmin ? 'title="Cliquer pour modifier ce profil (Admin)"' : '';
+
   return `
-    <div class="elu-card flex flex-col justify-between space-y-3">
+    <div class="elu-card flex flex-col justify-between space-y-3 ${adminCardClass}" data-player-id="${elu.id}" ${adminCardTitle}>
       <div>
         <div class="flex items-center justify-between gap-1 pb-2 border-b border-amber-500/20">
           <div class="flex items-center gap-1.5 font-bold text-xs text-amber-300">
@@ -927,7 +1054,7 @@ function renderEluCard(elu, category) {
           </div>
           <div class="flex items-center gap-1.5">
             ${rushBadge}
-            ${adminDeleteBtn}
+            ${adminBtns}
           </div>
         </div>
 
@@ -1194,16 +1321,25 @@ function renderPlayerRow(player) {
     }
   }
 
-  // Bouton de suppression admin si session active
-  const adminDeleteBtn = state.isAdmin ? `
-    <button type="button" class="btn-admin-delete-row p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
-      data-player-id="${player.id}" data-player-pseudo="${escapeHtml(player.pseudo)}" title="Supprimer ce joueur (Admin)">
-      <i data-lucide="trash-2" class="w-4 h-4"></i>
-    </button>
+  // Boutons d'action admin si session active
+  const adminActionBtns = state.isAdmin ? `
+    <div class="flex items-center gap-1">
+      <button type="button" class="btn-admin-edit-row p-1.5 md:p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition"
+        data-player-id="${player.id}" data-player-pseudo="${escapeHtml(player.pseudo)}" title="Modifier ce profil (Admin)">
+        <i data-lucide="edit-3" class="w-4 h-4"></i>
+      </button>
+      <button type="button" class="btn-admin-delete-row p-1.5 md:p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+        data-player-id="${player.id}" data-player-pseudo="${escapeHtml(player.pseudo)}" title="Supprimer ce joueur (Admin)">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+      </button>
+    </div>
   ` : '';
 
+  const adminRowClass = state.isAdmin ? 'admin-editable-row' : '';
+  const adminRowTitle = state.isAdmin ? 'title="Cliquer pour modifier ce profil (Admin)"' : '';
+
   return `
-    <div class="p-3 md:p-4 transition flex items-center justify-between gap-3 ${rowHighlightClass}">
+    <div class="p-3 md:p-4 transition flex items-center justify-between gap-3 ${rowHighlightClass} ${adminRowClass}" data-player-id="${player.id}" ${adminRowTitle}>
       <div class="flex items-center gap-3 min-w-0">
         <div class="rank-badge ${rankClass} shrink-0 text-xs font-black">
           ${rankIcon ? rankIcon : '#' + player.rank}
@@ -1223,7 +1359,7 @@ function renderPlayerRow(player) {
         </div>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        ${adminDeleteBtn}
+        ${adminActionBtns}
       </div>
     </div>
   `;
@@ -1243,6 +1379,7 @@ function updatePodiums(players) {
 }
 
 function setPodiumData(rank, player) {
+  const cardEl = document.getElementById(`podium-item-${rank}`);
   const nameEl = document.getElementById(`podium-name-${rank}`);
   const scoreEl = document.getElementById(`podium-score-${rank}`);
   if (!nameEl || !scoreEl) return;
@@ -1250,10 +1387,25 @@ function setPodiumData(rank, player) {
   if (!player) {
     nameEl.textContent = "-";
     scoreEl.textContent = "-";
+    if (cardEl) {
+      cardEl.classList.remove('admin-editable-row');
+      cardEl.removeAttribute('data-player-id');
+      cardEl.removeAttribute('title');
+    }
     return;
   }
 
   nameEl.textContent = player.pseudo;
+
+  if (cardEl && state.isAdmin) {
+    cardEl.classList.add('admin-editable-row');
+    cardEl.dataset.playerId = player.id;
+    cardEl.setAttribute('title', `Cliquer pour modifier ${player.pseudo} (Admin)`);
+  } else if (cardEl) {
+    cardEl.classList.remove('admin-editable-row');
+    cardEl.removeAttribute('data-player-id');
+    cardEl.removeAttribute('title');
+  }
 
   if (state.rankingView === 'general-real') {
     scoreEl.textContent = `Score: ${player.totalScore} pts (Simulé)`;
@@ -1305,6 +1457,9 @@ function initAdminFeatures() {
   // Déconnexion Admin
   logoutBtn.addEventListener('click', handleAdminLogout);
   headerLogoutBtn.addEventListener('click', handleAdminLogout);
+
+  // Annuler le mode édition admin depuis la bannière
+  document.getElementById('btn-cancel-admin-edit')?.addEventListener('click', cancelAdminEdit);
 
   // Modale de confirmation de suppression
   const deleteModal = document.getElementById('delete-confirm-modal');
@@ -1382,6 +1537,7 @@ async function handleAdminLogin() {
 async function handleAdminLogout() {
   try {
     await logoutAdmin();
+    cancelAdminEdit();
     setAdminState(false, null);
     showToast("Déconnexion administrateur effectuée", "info");
     document.getElementById('admin-modal').classList.add('hidden');
