@@ -229,6 +229,7 @@ function initFormControls() {
   document.getElementById('btn-submit-inscription').addEventListener('click', handleSubmitInscription);
 
   // Synchronisation des sliders et des champs de saisie numérique
+  setupSyncRangeAndNumber('input-clan-vials', 'range-clan-vials');
   setupSyncRangeAndNumber('input-skills-tickets', 'range-skills-tickets');
   setupSyncRangeAndNumber('input-skills-ascension-level', 'range-skills-ascension-level');
 
@@ -499,6 +500,9 @@ function fillFormWithPlayerData(player) {
     );
   }
 
+  // Fioles de Clan (Étape 2)
+  setFieldValue('input-clan-vials', 'range-clan-vials', player.clan_vials || 0);
+
   // Compétences (Étape 3)
   setFieldValue('input-skills-tickets', 'range-skills-tickets', player.skills_tickets);
   setPillGroupValue('skills-ascension', 'input-skills-ascension', player.skills_ascension);
@@ -557,6 +561,9 @@ async function handleSubmitInscription() {
   if (document.getElementById('cb-want-eggs')?.checked) selectedSlots.push('asc_eggs');
   if (document.getElementById('cb-want-mount')?.checked) selectedSlots.push('asc_mount');
 
+  const clanVials = Number(document.getElementById('input-clan-vials')?.value) || 0;
+  if (clanVials > 0) selectedSlots.push(`fioles:${clanVials}`);
+
   const isEditingAsAdmin = Boolean(state.isAdmin && state.editingPlayerId);
 
   const playerData = {
@@ -565,6 +572,7 @@ async function handleSubmitInscription() {
     want_skills_ascension: document.getElementById('cb-want-skills')?.checked || false,
     want_eggs_ascension: document.getElementById('cb-want-eggs')?.checked || false,
     want_mount_ascension: document.getElementById('cb-want-mount')?.checked || false,
+    clan_vials: clanVials,
 
     pseudo,
     skills_tickets: document.getElementById('input-skills-tickets').value,
@@ -935,6 +943,7 @@ function cancelAdminEdit() {
     forge_ascension: 0,
     forge_ascension_level: 0,
     forge_tech_level: 0,
+    clan_vials: 0,
     available_slots: []
   });
 
@@ -1028,6 +1037,13 @@ function renderEluCard(elu, category) {
     ? '<span class="slot-badge slot-badge-rush font-semibold text-[10px] inline-flex items-center gap-1" title="Disponible pour le rush nocturne 01h00 - 02h00">⚡ Rush 01h-02h</span>'
     : '';
 
+  const clanVialsBadge = (elu.clan_vials > 0)
+    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1" title="Fioles de clan : ${formatNumber(elu.clan_vials)}">
+        <img src="./Fioles.png" alt="Fioles" class="w-3.5 h-3.5 object-contain">
+        <span>${formatNumber(elu.clan_vials)}</span>
+       </span>`
+    : '';
+
   const adminBtns = state.isAdmin ? `
     <div class="flex items-center gap-0.5">
       <button type="button" class="btn-admin-edit-row p-1 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded transition"
@@ -1054,6 +1070,7 @@ function renderEluCard(elu, category) {
           </div>
           <div class="flex items-center gap-1.5">
             ${rushBadge}
+            ${clanVialsBadge}
             ${adminBtns}
           </div>
         </div>
@@ -1155,6 +1172,14 @@ function renderPlayerRow(player) {
 
   // Badges de créneaux
   const slotBadgesHtml = renderSlotBadgesHtml(player.available_slots);
+
+  // Badge Fioles de Clan (Informatif)
+  const clanVialsBadge = (player.clan_vials > 0)
+    ? `<span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1 shadow-sm" title="Fioles de clan : ${formatNumber(player.clan_vials)}">
+        <img src="./Fioles.png" alt="Fioles" class="w-3.5 h-3.5 object-contain">
+        <span>${formatNumber(player.clan_vials)}</span>
+       </span>`
+    : '';
 
   // Contenu spécifique selon le type de classement
   let detailsHtml = '';
@@ -1349,6 +1374,7 @@ function renderPlayerRow(player) {
             <span class="font-black text-sm md:text-base text-white truncate">${escapeHtml(player.pseudo)}</span>
             ${statusBadgeHtml}
             ${slotBadgesHtml}
+            ${clanVialsBadge}
             ${(state.rankingView === 'general-real' || state.rankingView === 'general-raw') ? `
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-extrabold border border-indigo-500/30">
                 Score: ${player.totalScore}

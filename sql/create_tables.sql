@@ -27,6 +27,11 @@ ADD COLUMN IF NOT EXISTS want_eggs_ascension BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.fm_big6_players 
 ADD COLUMN IF NOT EXISTS want_mount_ascension BOOLEAN NOT NULL DEFAULT false;
 
+-- Fioles de Clan (Informatif clan)
+ALTER TABLE public.fm_big6_players 
+ADD COLUMN IF NOT EXISTS clan_vials INTEGER NOT NULL DEFAULT 0 
+CHECK (clan_vials >= 0 AND clan_vials <= 10000);
+
 -- ------------------------------------------------------------------------------
 -- B. SI VOUS PARTEZ DE ZÉRO (NOUVELLE INSTALLATION)
 -- ------------------------------------------------------------------------------
@@ -64,6 +69,9 @@ CREATE TABLE IF NOT EXISTS public.fm_big6_players (
     forge_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (forge_ascension_level >= 0 AND forge_ascension_level <= 35),
     forge_tech_level INTEGER NOT NULL DEFAULT 0 CHECK (forge_tech_level >= 0 AND forge_tech_level <= 5),
     
+    -- Fioles de Clan (Informatif clan)
+    clan_vials INTEGER NOT NULL DEFAULT 0 CHECK (clan_vials >= 0 AND clan_vials <= 10000),
+
     -- Dates de suivi
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

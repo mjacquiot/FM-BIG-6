@@ -318,6 +318,37 @@
                 </label>
               </div>
             </div>
+
+            <!-- 3. Nombre de Fioles de Clan (Informatif Clan) -->
+            <div class="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="input-clan-vials" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <img src="./Fioles.png" alt="Fioles" class="w-5 h-5 object-contain">
+                  <span>Nombre de fioles de clan</span>
+                </label>
+                <span class="text-xs font-medium text-slate-400">0 à 10.000</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input type="number" id="input-clan-vials" min="0" max="10000" step="10" value="0"
+                  class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+
+              <input type="range" id="range-clan-vials" min="0" max="10000" step="50" value="0" class="w-full">
+              
+              <!-- Puces rapides -->
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="clan-vials" data-val="0">0</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="clan-vials" data-add="500">+500</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="clan-vials" data-add="1000">+1k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="clan-vials" data-add="2500">+2.5k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="clan-vials" data-val="10000">Max (10k)</button>
+              </div>
+
+              <p class="text-[11px] text-slate-400 italic">
+                Information interne pour l'organisation du clan (non prise en compte dans les classements).
+              </p>
+            </div>
           </div>
 
           <!-- Navigation Étape 1 -->

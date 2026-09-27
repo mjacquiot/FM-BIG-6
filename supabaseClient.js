@@ -30,6 +30,23 @@ if (!supabase) {
   console.error("Le SDK Supabase n'a pas pu être initialisé.");
 }
 
+function normalizePlayer(p) {
+  if (!p) return p;
+  let clanVials = p.clan_vials;
+  if (clanVials === undefined || clanVials === null) {
+    if (Array.isArray(p.available_slots)) {
+      const match = p.available_slots.find(s => typeof s === 'string' && s.startsWith('fioles:'));
+      if (match) {
+        clanVials = parseInt(match.split(':')[1], 10) || 0;
+      }
+    }
+  }
+  return {
+    ...p,
+    clan_vials: Number(clanVials) || 0
+  };
+}
+
 /**
  * Récupère tous les joueurs enregistrés
  */
@@ -45,7 +62,7 @@ export async function fetchPlayers() {
     console.error("Erreur lors de la récupération des joueurs:", error);
     throw error;
   }
-  return data || [];
+  return (data || []).map(normalizePlayer);
 }
 
 /**
@@ -65,7 +82,7 @@ export async function getPlayerByPseudo(pseudo) {
     console.error("Erreur lors de la recherche du joueur:", error);
     return null;
   }
-  return data;
+  return normalizePlayer(data);
 }
 
 /**
@@ -112,7 +129,8 @@ export async function upsertPlayer(playerData) {
     ...payload,
     want_skills_ascension: Boolean(playerData.want_skills_ascension),
     want_eggs_ascension: Boolean(playerData.want_eggs_ascension),
-    want_mount_ascension: Boolean(playerData.want_mount_ascension)
+    want_mount_ascension: Boolean(playerData.want_mount_ascension),
+    clan_vials: Number(playerData.clan_vials) || 0
   };
 
   let response;
@@ -153,7 +171,7 @@ export async function upsertPlayer(playerData) {
     console.error("Erreur lors de l'enregistrement du joueur:", response.error);
     throw response.error;
   }
-  return response.data?.[0];
+  return normalizePlayer(response.data?.[0]);
 }
 
 /**
