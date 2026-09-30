@@ -1058,6 +1058,7 @@
           <ul class="space-y-1.5 list-disc list-inside text-slate-400">
             <li>Les boutons rouges de suppression <i data-lucide="trash-2" class="w-3.5 h-3.5 inline text-red-400"></i> sont désormais actifs dans tous les tableaux.</li>
             <li>Vous pouvez supprimer un joueur ayant démissionné ou corriger une erreur.</li>
+            <li>Dans le menu <strong>Ordre d'Ascension</strong>, le bouton vert <i data-lucide="check-check" class="w-3.5 h-3.5 inline text-emerald-400"></i> permet de valider automatiquement l'ascension effectuée d'un joueur (décocher le souhait, +1 ascension et remise à 0 des ressources).</li>
           </ul>
         </div>
 
@@ -1087,6 +1088,81 @@
         </button>
         <button id="btn-confirm-delete" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-md shadow-red-600/30 transition">
           Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale de Confirmation d'Ascension Effectuée (Admin) -->
+  <div id="ascension-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-emerald-500/30 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+          <i data-lucide="check-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-lg text-white">Valider l'Ascension</h3>
+          <p class="text-xs text-slate-400">
+            Passage d'ascension pour <span id="ascension-modal-pseudo" class="font-bold text-emerald-300"></span> (<span id="ascension-modal-category" class="font-semibold text-slate-300"></span>)
+          </p>
+        </div>
+      </div>
+
+      <!-- Récapitulatif visuel des changements -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <span class="text-slate-400">Palier d'Ascension :</span>
+          <div class="flex items-center gap-2 font-bold">
+            <span id="ascension-modal-old-asc" class="text-slate-400">Asc. 0</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span id="ascension-modal-new-asc" class="text-emerald-400 font-black">Asc. 1</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div>
+            <span class="text-slate-400 block">Niveau après ascension :</span>
+            <span class="text-[10px] text-slate-500">(Issu de la simulation de dépense)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="number" id="ascension-modal-new-level" min="0" max="100" class="w-16 px-2 py-1 text-center font-bold bg-slate-900 border border-emerald-500/40 rounded-lg text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs">
+            <span class="text-slate-500 font-semibold">/ 100</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <span class="text-slate-400">Ressources restantes :</span>
+          <div class="flex items-center gap-2 font-bold">
+            <span id="ascension-modal-old-res" class="text-slate-400">0</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span class="text-emerald-400 font-black">0</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Souhait d'ascension :</span>
+          <div class="flex items-center gap-2 font-semibold">
+            <span class="text-amber-400/80 line-through">Coché</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span class="text-slate-400 font-bold">Décoché</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300/90 flex items-start gap-2">
+        <i data-lucide="info" class="w-4 h-4 shrink-0 text-amber-400 mt-0.5"></i>
+        <span>
+          Le joueur sera automatiquement retiré des <strong>Élus</strong> et replacé dans la suite du classement en fonction de son nouveau niveau et de ses 0 ressource restante.
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2 pt-1">
+        <button type="button" id="btn-cancel-ascension" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
+          Annuler
+        </button>
+        <button type="button" id="btn-confirm-ascension" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Confirmer l'Ascension</span>
         </button>
       </div>
     </div>

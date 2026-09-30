@@ -41,7 +41,8 @@ const state = {
 
   // Données du joueur en cours de saisie
   editingPlayerId: null,
-  deleteTarget: null
+  deleteTarget: null,
+  ascensionTarget: null
 };
 
 // =============================================================================
@@ -971,6 +972,7 @@ function attachAdminListeners() {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.btn-admin-delete-row')) return;
       if (e.target.closest('.btn-admin-edit-row')) return;
+      if (e.target.closest('.btn-admin-complete-ascension')) return;
       const playerId = el.dataset.playerId;
       if (playerId) startAdminEdit(playerId);
     });
@@ -983,6 +985,16 @@ function attachAdminListeners() {
       const playerId = btn.dataset.playerId;
       const playerPseudo = btn.dataset.playerPseudo;
       confirmDeletePlayer(playerId, playerPseudo);
+    });
+  });
+
+  // 4. Boutons validation rapide de l'ascension effectuée (Admin)
+  document.querySelectorAll('.btn-admin-complete-ascension').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const playerId = btn.dataset.playerId;
+      const category = btn.dataset.category || state.rankingCategory;
+      if (playerId) openAscensionConfirmModal(playerId, category);
     });
   });
 }
@@ -1046,6 +1058,10 @@ function renderEluCard(elu, category) {
 
   const adminBtns = state.isAdmin ? `
     <div class="flex items-center gap-0.5">
+      <button type="button" class="btn-admin-complete-ascension p-1 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition"
+        data-player-id="${elu.id}" data-category="${category}" title="Valider l'ascension effectuée (Admin)">
+        <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+      </button>
       <button type="button" class="btn-admin-edit-row p-1 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded transition"
         data-player-id="${elu.id}" data-player-pseudo="${escapeHtml(elu.pseudo)}" title="Modifier ce profil (Admin)">
         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
@@ -1347,8 +1363,19 @@ function renderPlayerRow(player) {
   }
 
   // Boutons d'action admin si session active
+  let adminAscensionBtn = '';
+  if (state.rankingView === 'ordre' && state.rankingCategory !== 'forge' && !player.isMaxed) {
+    adminAscensionBtn = `
+      <button type="button" class="btn-admin-complete-ascension p-1.5 md:p-2 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition"
+        data-player-id="${player.id}" data-category="${state.rankingCategory}" title="Valider l'ascension effectuée (Admin)">
+        <i data-lucide="check-check" class="w-4 h-4"></i>
+      </button>
+    `;
+  }
+
   const adminActionBtns = state.isAdmin ? `
     <div class="flex items-center gap-1">
+      ${adminAscensionBtn}
       <button type="button" class="btn-admin-edit-row p-1.5 md:p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition"
         data-player-id="${player.id}" data-player-pseudo="${escapeHtml(player.pseudo)}" title="Modifier ce profil (Admin)">
         <i data-lucide="edit-3" class="w-4 h-4"></i>
@@ -1494,6 +1521,22 @@ function initAdminFeatures() {
     state.deleteTarget = null;
   });
   document.getElementById('btn-confirm-delete').addEventListener('click', executeDeletePlayer);
+
+  // Modale de confirmation de validation d'ascension
+  const ascensionModal = document.getElementById('ascension-confirm-modal');
+  if (ascensionModal) {
+    document.getElementById('btn-cancel-ascension')?.addEventListener('click', () => {
+      ascensionModal.classList.add('hidden');
+      state.ascensionTarget = null;
+    });
+    document.getElementById('btn-confirm-ascension')?.addEventListener('click', executeConfirmAscension);
+    ascensionModal.addEventListener('click', (e) => {
+      if (e.target === ascensionModal) {
+        ascensionModal.classList.add('hidden');
+        state.ascensionTarget = null;
+      }
+    });
+  }
 }
 
 function updateAdminModalView() {
@@ -1603,6 +1646,167 @@ async function executeDeletePlayer() {
   } finally {
     confirmBtn.disabled = false;
     confirmBtn.textContent = "Supprimer";
+  }
+}
+
+function openAscensionConfirmModal(playerId, category) {
+  const player = state.players.find(p => String(p.id) === String(playerId));
+  if (!player) {
+    showToast("Joueur non trouvé", "error");
+    return;
+  }
+
+  category = category || state.rankingCategory || 'skills';
+  if (category === 'forge') {
+    showToast("L'ascension rapide n'est pas applicable à la forge", "warning");
+    return;
+  }
+
+  let currentAsc = 0;
+  let currentLvl = 0;
+  let techLevel = 0;
+  let currentRes = 0;
+  let catLabel = '';
+
+  if (category === 'skills') {
+    currentAsc = Number(player.skills_ascension) || 0;
+    currentLvl = Number(player.skills_ascension_level) || 0;
+    techLevel = Number(player.skills_tech_level) || 0;
+    currentRes = Number(player.skills_tickets) || 0;
+    catLabel = 'Compétences (Tickets)';
+  } else if (category === 'eggs') {
+    currentAsc = Number(player.eggs_ascension) || 0;
+    currentLvl = Number(player.eggs_ascension_level) || 0;
+    techLevel = Number(player.eggs_tech_level) || 0;
+    currentRes = Number(player.eggs_count) || 0;
+    catLabel = "Œufs d'Épée";
+  } else if (category === 'mount') {
+    currentAsc = Number(player.mount_ascension) || 0;
+    currentLvl = Number(player.mount_ascension_level) || 0;
+    techLevel = Number(player.mount_tech_level) || 0;
+    currentRes = Number(player.mount_keys) || 0;
+    catLabel = 'Monture (Clés)';
+  }
+
+  if (currentAsc >= 3 && currentLvl >= 100) {
+    showToast(`${player.pseudo} est déjà au palier maximum absolu (Ascension 3, Niveau 100)`, "info");
+    return;
+  }
+
+  // Simulation pour calculer le niveau atteint après dépense des ressources (règle rush / ordre d'ascension)
+  const sim = simulateRealProgression(category, currentAsc, currentLvl, techLevel, currentRes, true);
+
+  // L'ascension avance d'au moins +1 (ou sim.finalAscension), plafonnée à 3
+  const targetAsc = Math.min(3, Math.max(currentAsc + 1, sim.finalAscension));
+
+  // Niveau atteint dans la nouvelle ascension
+  let defaultNewLevel = 0;
+  if (sim.finalAscension > currentAsc) {
+    defaultNewLevel = Math.min(100, Math.max(0, sim.finalLevel));
+  } else {
+    // Si la quantité de ressources ne permettait pas de franchir 100 niveaux, mais que l'ascension est marquée faite
+    defaultNewLevel = 0;
+  }
+
+  if (targetAsc >= 3 && defaultNewLevel > 100) {
+    defaultNewLevel = 100;
+  }
+
+  state.ascensionTarget = {
+    playerId: player.id,
+    category,
+    currentAsc,
+    targetAsc,
+    currentLvl,
+    currentRes,
+    defaultNewLevel
+  };
+
+  const modal = document.getElementById('ascension-confirm-modal');
+  const pseudoSpan = document.getElementById('ascension-modal-pseudo');
+  const catSpan = document.getElementById('ascension-modal-category');
+  const oldAscSpan = document.getElementById('ascension-modal-old-asc');
+  const newAscSpan = document.getElementById('ascension-modal-new-asc');
+  const newLvlInput = document.getElementById('ascension-modal-new-level');
+  const oldResSpan = document.getElementById('ascension-modal-old-res');
+
+  if (pseudoSpan) pseudoSpan.textContent = player.pseudo;
+  if (catSpan) catSpan.textContent = catLabel;
+  if (oldAscSpan) oldAscSpan.textContent = `Asc. ${currentAsc} (Niv. ${currentLvl})`;
+  if (newAscSpan) newAscSpan.textContent = `Asc. ${targetAsc}`;
+  if (newLvlInput) newLvlInput.value = defaultNewLevel;
+  if (oldResSpan) oldResSpan.textContent = formatNumber(currentRes);
+
+  modal.classList.remove('hidden');
+  initLucide();
+}
+
+async function executeConfirmAscension() {
+  if (!state.ascensionTarget) return;
+
+  const { playerId, category, targetAsc } = state.ascensionTarget;
+  const existingPlayer = state.players.find(p => String(p.id) === String(playerId));
+  if (!existingPlayer) {
+    showToast("Joueur introuvable", "error");
+    return;
+  }
+
+  const modal = document.getElementById('ascension-confirm-modal');
+  const confirmBtn = document.getElementById('btn-confirm-ascension');
+  const newLvlInput = document.getElementById('ascension-modal-new-level');
+
+  let newLevel = parseInt(newLvlInput ? newLvlInput.value : 0, 10);
+  if (isNaN(newLevel) || newLevel < 0) newLevel = 0;
+  if (newLevel > 100) newLevel = 100;
+  if (targetAsc >= 3 && newLevel > 100) newLevel = 100;
+
+  const originalContent = confirmBtn.innerHTML;
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Validation...`;
+  initLucide();
+
+  try {
+    const updatedData = { ...existingPlayer };
+    let cleanSlots = Array.isArray(existingPlayer.available_slots) ? [...existingPlayer.available_slots] : [];
+
+    if (category === 'skills') {
+      updatedData.skills_ascension = targetAsc;
+      updatedData.skills_ascension_level = newLevel;
+      updatedData.skills_tickets = 0;
+      updatedData.want_skills_ascension = false;
+      cleanSlots = cleanSlots.filter(s => s !== 'asc_skills' && s !== 'skills');
+    } else if (category === 'eggs') {
+      updatedData.eggs_ascension = targetAsc;
+      updatedData.eggs_ascension_level = newLevel;
+      updatedData.eggs_count = 0;
+      updatedData.want_eggs_ascension = false;
+      cleanSlots = cleanSlots.filter(s => s !== 'asc_eggs' && s !== 'eggs');
+    } else if (category === 'mount') {
+      updatedData.mount_ascension = targetAsc;
+      updatedData.mount_ascension_level = newLevel;
+      updatedData.mount_keys = 0;
+      updatedData.want_mount_ascension = false;
+      cleanSlots = cleanSlots.filter(s => s !== 'asc_mount' && s !== 'mount');
+    }
+
+    updatedData.available_slots = cleanSlots;
+
+    await upsertPlayer(updatedData);
+
+    modal.classList.add('hidden');
+    state.ascensionTarget = null;
+    showToast(`Ascension validée pour ${existingPlayer.pseudo} (Asc. ${targetAsc}, Niv. ${newLevel}) !`, "success");
+    triggerConfetti();
+
+    // Rechargement des données pour recalculer les classements et mettre à jour la vue
+    await loadData(false);
+  } catch (err) {
+    console.error("Erreur validation ascension:", err);
+    showToast(`Erreur lors de la validation : ${err.message || 'Erreur inconnue'}`, "error");
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = originalContent;
+    initLucide();
   }
 }
 
