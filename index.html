@@ -8,52 +8,22 @@
   <!-- Favicon avec l'une des icônes du jeu -->
   <link rel="icon" type="image/png" href="./Tickets FM.png">
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              400: '#818cf8',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-              800: '#3730a3',
-              900: '#312e81',
-            },
-            game: {
-              bg: '#090d16',
-              card: '#0f172a',
-              cardHover: '#1e293b',
-              accent: '#10b981',
-              gold: '#f59e0b',
-              silver: '#94a3b8',
-              bronze: '#d97706'
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Styles compilés Tailwind CSS (autonome sans CDN externe pour Discord et Web) -->
+  <link rel="stylesheet" href="./tailwind.min.css">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Supabase JS Client v2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase JS Client v2 (local) -->
+  <script src="./supabase.min.js"></script>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Lucide Icons (local) -->
+  <script src="./lucide.min.js"></script>
 
-  <!-- Canvas Confetti CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- Canvas Confetti (local) -->
+  <script src="./confetti.browser.min.js"></script>
 
   <!-- Style CSS personnalisé -->
   <link rel="stylesheet" href="./style.css">
