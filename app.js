@@ -23,6 +23,8 @@ import {
   getOrdreAscensionWithElus
 } from './rankingEngine.js';
 
+import { initDiscordActivity } from './discordActivity.js';
+
 // =============================================================================
 // ÉTAT DE L'APPLICATION
 // =============================================================================
@@ -49,6 +51,9 @@ const state = {
 // INITIALISATION
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  // Initialisation Discord Activity (si ouvert dans Discord, sans effet sinon)
+  await initDiscordActivity();
+
   initLucide();
   initTabNavigation();
   initFormControls();
