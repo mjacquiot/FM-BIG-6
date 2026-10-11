@@ -750,7 +750,7 @@ function updateCriteriaDescription() {
   } else if (state.rankingView === 'avancement') {
     criteriaText.innerHTML = `<strong>Classement d'Avancement Réel :</strong> Progression simulée après dépense des ressources (100 niveaux/palier) : 1) Ascension simulée &rarr; 2) Niveau atteint &rarr; 3) Ressources résiduelles &rarr; 4) Tech. Plafond maximal : Ascension 3 Niv. 100.`;
   } else if (state.rankingView === 'ordre') {
-    criteriaText.innerHTML = `<strong>Ordre d'Ascension :</strong> Priorité 1 aux joueurs ayant coché <em>« Je veux faire mon ascension »</em> (<strong>Les Élus</strong>, en jaune doré). Classés par <strong>Points de Guerre prévisionnels</strong> (simulation plafonnée à 1 ascension max + fusions). Les joueurs n'ayant pas coché l'ascension suivent en 2ème partie, et les joueurs au palier max (Asc. 3 Niv. 100) sont relégués en fin de tableau. Le badge <em>⚡ Rush</em> indique la disponibilité au rush nocturne (01h00 - 02h00).`;
+    criteriaText.innerHTML = `<strong>Ordre d'Ascension :</strong> Priorité 1 aux joueurs ayant coché <em>« Je veux faire mon ascension »</em> (<strong>Les Élus</strong>, en jaune doré). Classés par <strong>Points de Guerre prévisionnels</strong> (simulation multi-ascensions avec seuil minimal de 30/100 pour entamer l'ascension suivante + fusions). Les joueurs n'ayant pas coché l'ascension suivent en 2ème partie, et les joueurs au palier max (Asc. 3 Niv. 100) sont relégués en fin de tableau. Le badge <em>⚡ Rush</em> indique la disponibilité au rush nocturne (01h00 - 02h00).`;
   }
 }
 
