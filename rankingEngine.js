@@ -75,94 +75,92 @@ export function simulateRealProgression(category, ascension, currentLevel, techL
   let finalLevel = lvl;
 
   if (isOrdreAscension) {
-    // Règle spécifique à l'Ordre d'Ascension (Rush) :
-    // - On peut franchir plusieurs ascensions si les ressources le permettent.
-    // - Mais chaque ascension suivante entamée exige d'atteindre au MINIMUM le niveau 30/100.
-    // - Si le joueur ne peut pas atteindre au moins 30/100 dans l'ascension suivante,
-    //   le compteur s'arrête strictement à 100/100 de l'ascension précédente (fin de palier).
-    const levelsToFinishCurrent = 100 - lvl;
-
-    if (affordableLevels <= levelsToFinishCurrent) {
-      // Le joueur ne termine pas l'ascension en cours (ou arrive pile à 100/100)
-      levelsGained = affordableLevels;
-      if (levelsGained === levelsToFinishCurrent && asc < 3) {
-        finalAscension = asc + 1;
-        finalLevel = 0;
-      } else {
-        finalLevel = lvl + levelsGained;
-      }
+    // Si le joueur est déjà à l'Ascension 3, il ne peut pas monter au-delà du Niv 100 (l'Ascension 4 n'existe pas)
+    if (asc >= 3) {
+      levelsGained = Math.min(100 - lvl, affordableLevels);
+      finalAscension = 3;
+      finalLevel = lvl + levelsGained;
     } else {
-      // Le joueur termine son ascension en cours ET a du surplus pour l'ascension suivante
-      let currentSimAsc = asc;
+      // Normalisation : si le joueur a saisi lvl = 100 (ex: Asc 1 Niv 100), il est au seuil de l'ascension suivante (Asc 2 Niv 0)
+      let curAsc = asc;
       let curLvl = lvl;
-      let remainingLevelsToSpend = affordableLevels;
+      if (curLvl >= 100 && curAsc < 3) {
+        curAsc += 1;
+        curLvl = 0;
+      }
 
-      while (currentSimAsc < 3 && remainingLevelsToSpend > (100 - curLvl)) {
-        // Coût pour terminer le palier actuel jusqu'à 100/100
+      let remainingLevels = affordableLevels;
+
+      // 1. Finir l'ascension en cours si elle a déjà été entamée (curLvl > 0)
+      if (curLvl > 0) {
         const neededToFinish = 100 - curLvl;
-        const surplusForNext = remainingLevelsToSpend - neededToFinish;
-
-        // Condition seuil : pour entamer l'ascension suivante, il faut pouvoir atteindre AU MOINS le niveau 30/100
-        if (surplusForNext < 30) {
-          // Ne peut pas atteindre 30/100 : on valide la fin de l'ascension actuelle (100/100) et on stoppe là
-          levelsGained += neededToFinish;
-          currentSimAsc = currentSimAsc + 1;
-          curLvl = 0; // Ascension franchie, arrêt au seuil
-          break;
-        } else {
-          // Atteint au moins 30/100 : on valide le passage à l'ascension suivante
-          levelsGained += neededToFinish;
-          currentSimAsc = currentSimAsc + 1;
-          curLvl = 0;
-          remainingLevelsToSpend = surplusForNext;
-
-          // Si le joueur ne peut pas terminer cette nouvelle ascension (surplus < 100)
-          if (remainingLevelsToSpend < 100) {
-            levelsGained += remainingLevelsToSpend;
-            curLvl = remainingLevelsToSpend;
-            remainingLevelsToSpend = 0;
-            break;
+        if (remainingLevels <= neededToFinish) {
+          // Ne termine pas l'ascension en cours (ou arrive pile à 100)
+          levelsGained += remainingLevels;
+          curLvl += remainingLevels;
+          remainingLevels = 0;
+          if (curLvl === 100 && curAsc < 3) {
+            curAsc += 1;
+            curLvl = 0;
           }
-          // Si surplus >= 100, la boucle recommence pour tester l'ascension d'après
+        } else {
+          // Termine l'ascension en cours : on consomme neededToFinish et on passe au palier suivant
+          levelsGained += neededToFinish;
+          remainingLevels -= neededToFinish;
+          curAsc += 1;
+          curLvl = 0;
         }
       }
 
-      // Si après la boucle il reste des niveaux et qu'on est déjà à l'ascension 3 maxée
-      if (currentSimAsc >= 3 && curLvl < 100 && remainingLevelsToSpend > 0) {
-        const toAdd = Math.min(100 - curLvl, remainingLevelsToSpend);
-        levelsGained += toAdd;
-        curLvl += toAdd;
+      // 2. Traitement des ascensions suivantes entamées à curLvl === 0 :
+      // Règle Rush : chaque nouvelle ascension exige d'atteindre au MINIMUM le niveau 30/100.
+      while (remainingLevels > 0 && curAsc <= 3) {
+        if (curAsc === 3) {
+          // Arrivé à l'Ascension 3 (dernier palier du jeu)
+          if (curLvl === 0 && remainingLevels < 30) {
+            // Ne peut pas atteindre 30/100 en Ascension 3 -> arrêt à la fin de l'Ascension 2
+            break;
+          }
+          const toAdd = Math.min(100 - curLvl, remainingLevels);
+          levelsGained += toAdd;
+          curLvl += toAdd;
+          remainingLevels -= toAdd;
+          break;
+        } else {
+          // curAsc < 3 et curLvl === 0
+          if (remainingLevels < 30) {
+            // Seuil non atteint (< 30/100) : arrêt au palier précédent
+            break;
+          } else if (remainingLevels < 100) {
+            // Seuil atteint (entre 30 et 99 niveaux) : on valide ces niveaux
+            levelsGained += remainingLevels;
+            curLvl = remainingLevels;
+            remainingLevels = 0;
+            break;
+          } else {
+            // Au moins 100 niveaux : on valide les 100 niveaux de cette ascension
+            levelsGained += 100;
+            remainingLevels -= 100;
+            curAsc += 1;
+            curLvl = 0;
+            // La boucle continue pour tester l'ascension d'après
+          }
+        }
       }
 
-      finalAscension = currentSimAsc;
+      finalAscension = curAsc;
       finalLevel = curLvl;
     }
   } else {
     // En classement réel standard : progression libre jusqu'à Ascension 3 Niveau 100
     levelsGained = Math.min(affordableLevels, levelsToGameMax);
-
-    if (levelsGained > 0) {
-      const levelsToFinishCurrent = 100 - lvl;
-      if (levelsGained < levelsToFinishCurrent) {
-        finalLevel = lvl + levelsGained;
-      } else if (levelsGained === levelsToFinishCurrent) {
-        finalAscension = Math.min(3, asc + 1);
-        finalLevel = 0;
-      } else {
-        const remAfterFirstAsc = levelsGained - levelsToFinishCurrent;
-        const fullAscGained = 1 + Math.floor(remAfterFirstAsc / 100);
-        finalAscension = Math.min(3, asc + fullAscGained);
-        if (finalAscension >= 3) {
-          const totalAfterStart = (asc * 100) + lvl + levelsGained;
-          if (totalAfterStart >= 400) {
-            finalLevel = 100;
-          } else {
-            finalLevel = totalAfterStart % 100;
-          }
-        } else {
-          finalLevel = remAfterFirstAsc % 100;
-        }
-      }
+    const endAbsolute = (asc * 100) + lvl + levelsGained;
+    if (endAbsolute >= 400) {
+      finalAscension = 3;
+      finalLevel = 100;
+    } else {
+      finalAscension = Math.floor(endAbsolute / 100);
+      finalLevel = endAbsolute % 100;
     }
   }
 
