@@ -26,7 +26,7 @@ export async function initDiscordActivity() {
   }
 
   try {
-    const { DiscordSDK, patchUrlMappings } = await import('https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@2.5.0/+esm');
+    const { DiscordSDK, patchUrlMappings } = await import('./embedded-app-sdk.js');
 
     // Mappage sécurisé du proxy pour les requêtes Supabase dans Discord
     if (typeof patchUrlMappings === 'function') {

@@ -2,7 +2,14 @@
  * Module Supabase Client pour FM BIG 6
  */
 
-const SUPABASE_URL = "https://nkdgmxwznrrywwjwcsfk.supabase.co";
+const isInsideDiscord = window.location.hostname.includes('discordsays.com') ||
+                        window.location.search.includes('frame_id') ||
+                        window.location.search.includes('instance_id');
+
+const SUPABASE_URL = isInsideDiscord
+  ? `${window.location.origin}/supabase`
+  : "https://nkdgmxwznrrywwjwcsfk.supabase.co";
+
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5rZGdteHd6bnJyeXd3andjc2ZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMTU3MDgsImV4cCI6MjA5NTg5MTcwOH0.PHEA2ngQkln67Vm55Cb8YtDc_RlbVadsGiZ4aNmMd3U";
 
 // Nettoyage préventif des anciens tokens persistés dans localStorage
