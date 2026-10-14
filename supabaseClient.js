@@ -54,16 +54,25 @@ function normalizePlayer(p) {
   };
 }
 
+function withTimeout(promise, ms = 7000, errorMsg = "Délai de connexion dépassé (7s)") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+  ]);
+}
+
 /**
- * Récupère tous les joueurs enregistrés
+ * Récupère tous les joueurs enregistrés (sécurisé avec timeout)
  */
 export async function fetchPlayers() {
   if (!supabase) throw new Error("Client Supabase non initialisé");
   
-  const { data, error } = await supabase
+  const query = supabase
     .from("fm_big6_players")
     .select("*")
     .order("updated_at", { ascending: false });
+
+  const { data, error } = await withTimeout(query, 7000);
 
   if (error) {
     console.error("Erreur lors de la récupération des joueurs:", error);

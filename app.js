@@ -12,7 +12,7 @@ import {
   logoutAdmin,
   getAdminSession,
   onAuthStateChange
-} from './supabaseClient.js';
+} from './supabaseClient.js?v=20261014_4';
 
 import {
   simulateRealProgression,
@@ -21,9 +21,9 @@ import {
   getGeneralRealRanking,
   getGeneralRawRanking,
   getOrdreAscensionWithElus
-} from './rankingEngine.js';
+} from './rankingEngine.js?v=20261014_4';
 
-import { initDiscordActivity } from './discordActivity.js';
+import { initDiscordActivity } from './discordActivity.js?v=20261014_4';
 
 // =============================================================================
 // ÉTAT DE L'APPLICATION
@@ -101,13 +101,16 @@ function initTabNavigation() {
   btnInscription.addEventListener('click', () => switchTab('inscription'));
   btnResultat.addEventListener('click', () => switchTab('resultat'));
 
-  document.getElementById('btn-refresh-data').addEventListener('click', async () => {
+  document.getElementById('btn-refresh-data')?.addEventListener('click', async () => {
     const icon = document.querySelector('.refresh-icon');
     if (icon) icon.classList.add('animate-spin');
-    await loadData(true);
-    setTimeout(() => {
-      if (icon) icon.classList.remove('animate-spin');
-    }, 600);
+    try {
+      await loadData(true);
+    } finally {
+      setTimeout(() => {
+        if (icon) icon.classList.remove('animate-spin');
+      }, 400);
+    }
   });
 
   // Boutons de la vue de succès
