@@ -377,7 +377,9 @@ export async function createPoll(pollData) {
     description: pollData.description ? pollData.description.trim() : '',
     category: pollData.category || 'chef',
     is_active: pollData.is_active !== undefined ? Boolean(pollData.is_active) : true,
-    allow_self_vote: Boolean(pollData.allow_self_vote)
+    allow_self_vote: Boolean(pollData.allow_self_vote),
+    max_votes: Number(pollData.max_votes) || 5,
+    role_options: Array.isArray(pollData.role_options) ? pollData.role_options : ['Dirigeant', 'R5']
   };
 
   const { data, error } = await supabase
@@ -458,9 +460,9 @@ export async function fetchVotesForPoll(pollId) {
 }
 
 /**
- * Enregistre ou modifie le vote d'un joueur
+ * Enregistre ou modifie le vote d'un joueur pour un candidat avec son rôle (Dirigeant ou R5)
  */
-export async function castVote(pollId, voterPseudo, candidateId, candidatePseudo) {
+export async function castVote(pollId, voterPseudo, candidateId, candidatePseudo, voteRole = 'R5') {
   if (!supabase) throw new Error("Client Supabase non initialisé");
   if (!pollId || !voterPseudo || !candidatePseudo) {
     throw new Error("Paramètres de vote incomplets");
@@ -469,6 +471,7 @@ export async function castVote(pollId, voterPseudo, candidateId, candidatePseudo
   const cleanVoter = voterPseudo.trim();
   const normalizedVoter = cleanVoter.toLowerCase();
   const cleanCandidate = candidatePseudo.trim();
+  const cleanRole = voteRole === 'Dirigeant' ? 'Dirigeant' : 'R5';
 
   const payload = {
     poll_id: pollId,
@@ -476,12 +479,13 @@ export async function castVote(pollId, voterPseudo, candidateId, candidatePseudo
     voter_pseudo_normalized: normalizedVoter,
     candidate_id: candidateId || null,
     candidate_pseudo: cleanCandidate,
+    vote_role: cleanRole,
     updated_at: new Date().toISOString()
   };
 
   const { data, error } = await supabase
     .from("fm_big6_votes")
-    .upsert(payload, { onConflict: 'poll_id, voter_pseudo_normalized' })
+    .upsert(payload, { onConflict: 'poll_id, voter_pseudo_normalized, candidate_pseudo' })
     .select();
 
   if (error) {
@@ -492,7 +496,29 @@ export async function castVote(pollId, voterPseudo, candidateId, candidatePseudo
 }
 
 /**
- * Annule le vote d'un joueur
+ * Supprime le vote d'un joueur pour un candidat spécifique
+ */
+export async function deleteCandidateVote(pollId, voterPseudo, candidatePseudo) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+  const normalizedVoter = voterPseudo.trim().toLowerCase();
+  const cleanCandidate = candidatePseudo.trim();
+
+  const { error } = await supabase
+    .from("fm_big6_votes")
+    .delete()
+    .eq("poll_id", pollId)
+    .eq("voter_pseudo_normalized", normalizedVoter)
+    .eq("candidate_pseudo", cleanCandidate);
+
+  if (error) {
+    console.error("Erreur suppression vote candidat:", error);
+    throw error;
+  }
+  return true;
+}
+
+/**
+ * Annule tous les votes d'un joueur pour un sondage donné
  */
 export async function cancelVote(pollId, voterPseudo) {
   if (!supabase) throw new Error("Client Supabase non initialisé");

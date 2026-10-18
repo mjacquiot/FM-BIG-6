@@ -333,5 +333,70 @@ input[type="range"]::-moz-range-thumb {
   border-color: #818cf8;
 }
 
+/* Carte de candidat déjà votée */
+.candidate-card.voted {
+  border-color: rgba(99, 102, 241, 0.7);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+}
+
+.candidate-card.voted-dirigeant {
+  border-color: rgba(245, 158, 11, 0.7);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+}
+
+.candidate-card.voted-r5 {
+  border-color: rgba(168, 85, 247, 0.7);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.25);
+}
+
+/* Boutons de sélection de rôle */
+.role-choice-btn {
+  border: 2px solid #334155;
+  background: #090d16;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.role-choice-btn:hover {
+  border-color: #64748b;
+  transform: translateY(-2px);
+}
+
+.role-choice-btn.selected-dirigeant {
+  border-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3);
+}
+
+.role-choice-btn.selected-r5 {
+  border-color: #a855f7 !important;
+  background: rgba(168, 85, 247, 0.15) !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.3);
+}
+
+/* Barre de vote stacked */
+.vote-progress-stacked {
+  height: 8px;
+  border-radius: 9999px;
+  background: rgba(30, 41, 59, 0.8);
+  display: flex;
+  overflow: hidden;
+}
+
+.vote-progress-fill-dirigeant {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.vote-progress-fill-r5 {
+  background: linear-gradient(90deg, #a855f7, #6366f1);
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
 
 
