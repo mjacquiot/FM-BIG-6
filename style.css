@@ -333,23 +333,23 @@ input[type="range"]::-moz-range-thumb {
   border-color: #818cf8;
 }
 
-/* Carte de candidat déjà votée */
+/* Carte de candidat déjà votée - Affichage en VERT immédiat */
 .candidate-card.voted {
-  border-color: rgba(99, 102, 241, 0.7);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+  border-color: #10b981 !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.35) !important;
 }
 
 .candidate-card.voted-dirigeant {
-  border-color: rgba(245, 158, 11, 0.7);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+  border-color: #10b981 !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.4) !important;
 }
 
 .candidate-card.voted-r5 {
-  border-color: rgba(168, 85, 247, 0.7);
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
-  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.25);
+  border-color: #10b981 !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.4) !important;
 }
 
 /* Boutons de sélection de rôle */
@@ -396,6 +396,43 @@ input[type="range"]::-moz-range-thumb {
   background: linear-gradient(90deg, #a855f7, #6366f1);
   height: 100%;
   transition: width 0.5s ease;
+}
+
+/* Cartes des 2 Dirigeants Sélectionnés (Commandant & Capitaine) */
+.card-commandant {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 2px solid rgba(245, 158, 11, 0.7);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-commandant::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24, #d97706);
+}
+
+.card-capitaine {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 2px solid rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-capitaine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9, #0284c7);
 }
 
 

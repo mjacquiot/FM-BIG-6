@@ -1487,58 +1487,7 @@
     </div>
   </div>
 
-  <!-- ================================================================= -->
-  <!-- MODALE CONFIRMATION DE VOTE AVEC DEGRÉ (DIRIGEANT / R5) -->
-  <!-- ================================================================= -->
-  <div id="vote-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass-card bg-slate-900 border border-indigo-500/40 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
-      <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/10">
-        <i data-lucide="vote" class="w-6 h-6"></i>
-      </div>
-      <div>
-        <h3 class="font-bold text-lg text-white">Confirmer votre vote</h3>
-        <p class="text-xs text-slate-400 mt-1">
-          Vous sélectionnez :
-        </p>
-        <div class="flex items-center justify-center gap-2 mt-1.5">
-          <span id="vote-confirm-candidate-name" class="font-black text-lg text-indigo-300"></span>
-          <span id="vote-confirm-candidate-rank" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"></span>
-        </div>
-      </div>
 
-      <!-- Choix des 2 degrés / rôles -->
-      <div class="space-y-2 text-left pt-1">
-        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center">
-          Attribuez un rôle à ce membre :
-        </label>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" id="vote-role-btn-dirigeant" class="role-choice-btn p-3 rounded-2xl text-center flex flex-col items-center gap-1">
-            <span class="text-xl">👑</span>
-            <span class="font-black text-xs text-amber-300">Dirigeant</span>
-            <span class="text-[9px] text-slate-400">Direction générale</span>
-          </button>
-          <button type="button" id="vote-role-btn-r5" class="role-choice-btn p-3 rounded-2xl text-center flex flex-col items-center gap-1">
-            <span class="text-xl">🛡️</span>
-            <span class="font-black text-xs text-purple-300">R5</span>
-            <span class="text-[9px] text-slate-400">Commandement R5</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="pt-1">
-        <p id="vote-confirm-quota-hint" class="text-[11px] text-slate-400 font-medium"></p>
-      </div>
-
-      <div class="flex items-center gap-2 pt-1">
-        <button id="btn-cancel-vote-confirm" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
-          Annuler
-        </button>
-        <button id="btn-execute-vote-confirm" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md shadow-brand-600/30 transition">
-          Valider mon vote
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- Pied de page -->
   <footer class="mt-auto py-4 border-t border-slate-900 text-center text-xs text-slate-600">
@@ -1546,6 +1495,6 @@
   </footer>
 
   <!-- Scripts applicatifs en module ES6 (cache-buster anti-cache Discord) -->
-  <script type="module" src="./app.js?v=20261018_2"></script>
+  <script type="module" src="./app.js?v=20261018_4"></script>
 </body>
 </html>

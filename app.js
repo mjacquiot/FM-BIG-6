@@ -23,7 +23,7 @@ import {
   deleteCandidateVote,
   cancelVote,
   resetPollVotes
-} from './supabaseClient.js?v=20261018_2';
+} from './supabaseClient.js?v=20261018_4';
 
 import {
   simulateRealProgression,
@@ -32,9 +32,9 @@ import {
   getGeneralRealRanking,
   getGeneralRawRanking,
   getOrdreAscensionWithElus
-} from './rankingEngine.js?v=20261018_2';
+} from './rankingEngine.js?v=20261018_4';
 
-import { initDiscordActivity } from './discordActivity.js?v=20261018_2';
+import { initDiscordActivity } from './discordActivity.js?v=20261018_4';
 
 // =============================================================================
 // ÉTAT DE L'APPLICATION
@@ -2175,36 +2175,6 @@ function initPollsEvents() {
   document.getElementById('btn-close-poll-voters-bottom')?.addEventListener('click', () => {
     document.getElementById('poll-voters-modal')?.classList.add('hidden');
   });
-
-  // Modale de confirmation de vote
-  document.getElementById('vote-role-btn-dirigeant')?.addEventListener('click', () => {
-    state.selectedVoteRole = 'Dirigeant';
-    updateVoteModalRoleUI();
-  });
-  document.getElementById('vote-role-btn-r5')?.addEventListener('click', () => {
-    state.selectedVoteRole = 'R5';
-    updateVoteModalRoleUI();
-  });
-
-  document.getElementById('btn-cancel-vote-confirm')?.addEventListener('click', () => {
-    document.getElementById('vote-confirm-modal')?.classList.add('hidden');
-    state.selectedCandidate = null;
-  });
-  document.getElementById('btn-execute-vote-confirm')?.addEventListener('click', executeVoteConfirm);
-}
-
-function updateVoteModalRoleUI() {
-  const btnDirigeant = document.getElementById('vote-role-btn-dirigeant');
-  const btnR5 = document.getElementById('vote-role-btn-r5');
-  if (!btnDirigeant || !btnR5) return;
-
-  if (state.selectedVoteRole === 'Dirigeant') {
-    btnDirigeant.classList.add('selected-dirigeant');
-    btnR5.classList.remove('selected-r5');
-  } else {
-    btnR5.classList.add('selected-r5');
-    btnDirigeant.classList.remove('selected-dirigeant');
-  }
 }
 
 /**
@@ -2573,8 +2543,8 @@ function renderCurrentPollDetail() {
         <div class="${cardClasses}" data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-candidate-rank="${c.rank}">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-black flex items-center justify-center text-xs shrink-0">
-                ${c.pseudo.charAt(0).toUpperCase()}
+              <div class="w-8 h-8 rounded-xl ${isVoted ? 'bg-emerald-500/25 border border-emerald-500/50 text-emerald-300' : 'bg-slate-800 border border-slate-700 text-slate-200'} font-black flex items-center justify-center text-xs shrink-0">
+                ${isVoted ? '<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>' : c.pseudo.charAt(0).toUpperCase()}
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5 flex-wrap">
@@ -2583,8 +2553,9 @@ function renderCurrentPollDetail() {
                   ${isSelf ? '<span class="text-[10px] text-amber-400 font-semibold">(Vous)</span>' : ''}
                 </div>
                 ${isVoted ? `
-                  <div class="text-[11px] font-semibold mt-0.5 flex items-center gap-1.5 ${isVotedDirigeant ? 'text-amber-300' : 'text-purple-300'}">
-                    <span>${isVotedDirigeant ? '👑 Attribué comme Dirigeant' : '🛡️ Attribué comme R5'}</span>
+                  <div class="text-[11px] font-black mt-0.5 flex items-center gap-1.5 text-emerald-300">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>✓ Voté (${isVotedDirigeant ? '👑 Dirigeant' : '🛡️ R5'})</span>
                   </div>
                 ` : ''}
               </div>
@@ -2595,12 +2566,12 @@ function renderCurrentPollDetail() {
               ${isSelfForbidden ? `
                 <span class="text-[10px] text-slate-500 italic">Vote pour soi interdit</span>
               ` : isVoted ? `
-                <!-- Bouton pour basculer de rôle -->
+                <!-- Bouton pour basculer de rôle en 1 clic direct -->
                 <button type="button" class="btn-switch-candidate-role px-2.5 py-1 rounded-lg text-[11px] font-black transition flex items-center gap-1 ${isVotedDirigeant ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40' : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'}"
                   data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-new-role="${isVotedDirigeant ? 'R5' : 'Dirigeant'}" title="Basculer vers ${isVotedDirigeant ? 'R5' : 'Dirigeant'}">
                   <span>${isVotedDirigeant ? '🛡️ Passer en R5' : '👑 Passer en Dirigeant'}</span>
                 </button>
-                <!-- Bouton pour retirer ce vote -->
+                <!-- Bouton pour retirer ce vote en 1 clic direct -->
                 <button type="button" class="btn-remove-single-vote p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
                   data-candidate-pseudo="${escapeHtml(c.pseudo)}" title="Retirer ce vote">
                   <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -2608,13 +2579,13 @@ function renderCurrentPollDetail() {
               ` : maxVotesReached ? `
                 <span class="text-[10px] text-slate-500 font-medium italic">Quota atteint (${maxVotes}/${maxVotes})</span>
               ` : `
-                <!-- Boutons pour voter avec degré -->
+                <!-- Boutons pour voter avec rôle en 1 SEUL CLIC DIRECT (sans modale de confirmation) -->
                 <button type="button" class="btn-vote-candidate-role px-2.5 py-1.5 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition active:scale-95 flex items-center gap-1 shadow-sm"
-                  data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-role="Dirigeant" data-rank="${c.rank}">
+                  data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-role="Dirigeant" title="Voter pour ${escapeHtml(c.pseudo)} en tant que Dirigeant">
                   <span>👑 Dirigeant</span>
                 </button>
                 <button type="button" class="btn-vote-candidate-role px-2.5 py-1.5 rounded-xl text-xs font-black bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 transition active:scale-95 flex items-center gap-1 shadow-sm"
-                  data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-role="R5" data-rank="${c.rank}">
+                  data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-role="R5" title="Voter pour ${escapeHtml(c.pseudo)} en tant que R5">
                   <span>🛡️ R5</span>
                 </button>
               `}
@@ -2666,7 +2637,7 @@ function renderCurrentPollDetail() {
             </div>
           ` : `
             <p class="text-[11px] text-slate-400 italic">
-              Vous n'avez pas encore voté. Choisissez ci-dessous vos membres favoris classés par leur Classement Réel FAS.
+              Vous n'avez pas encore voté. Cliquez directement sur le rôle de votre choix ci-dessous !
             </p>
           `}
         </div>
@@ -2707,40 +2678,146 @@ function renderCurrentPollDetail() {
         </p>
       </div>
     `;
-  } else {
-    // Podiums Top 3 des votes (avec départage Classement Réel)
-    const top1 = sortedCandidates[0];
-    const top2 = sortedCandidates[1];
-    const top3 = sortedCandidates[2];
+    // 1. Détermination des 2 Dirigeants sélectionnés :
+    // Tri : votes Dirigeant DESC, puis départage par Classement Réel FAS ASC
+    const candidatesForDirigeant = Object.values(candidateStats)
+      .filter(c => c.countDirigeant > 0)
+      .sort((a, b) => {
+        if (b.countDirigeant !== a.countDirigeant) return b.countDirigeant - a.countDirigeant;
+        if (a.realRank !== b.realRank) return a.realRank - b.realRank;
+        return a.candidatePseudo.localeCompare(b.candidatePseudo);
+      });
 
-    const podiumsHtml = `
-      <div class="grid grid-cols-3 gap-2 pt-2 mb-4">
-        <!-- 2ème Place -->
-        <div class="podium-card podium-2 rounded-2xl p-2.5 border flex flex-col items-center justify-end text-center min-h-[115px]">
-          <div class="w-6 h-6 rounded-full bg-slate-400/20 text-slate-300 font-bold text-xs flex items-center justify-center border border-slate-400/40 mb-1">2</div>
-          <p class="font-bold text-xs text-white truncate max-w-full">${top2 ? escapeHtml(top2.candidatePseudo) : '-'}</p>
-          ${top2 ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mt-0.5">#${top2.realRank} Réel</span>` : ''}
-          <p class="text-[10px] text-slate-400 mt-1">${top2 ? `${top2.countTotal} vote${top2.countTotal > 1 ? 's' : ''} (${top2.percentage}%)` : '-'}</p>
-          ${top2 ? `<span class="text-[9px] text-amber-300/80">${top2.countDirigeant} 👑 • ${top2.countR5} 🛡️</span>` : ''}
+    const electedCommandant = candidatesForDirigeant[0] || null; // 1er Dirigeant : Commandant
+    const electedCapitaine = candidatesForDirigeant[1] || null;  // 2ème Dirigeant : Capitaine
+
+    const electedDirigeantSet = new Set(
+      [electedCommandant?.candidatePseudo.toLowerCase(), electedCapitaine?.candidatePseudo.toLowerCase()].filter(Boolean)
+    );
+
+    // 2. Détermination des 10 R5 sélectionnés :
+    // Tri : votes R5 DESC (en excluant les 2 dirigeants déjà élus), puis départage par Classement Réel FAS ASC
+    const candidatesForR5 = Object.values(candidateStats)
+      .filter(c => c.countR5 > 0 && !electedDirigeantSet.has(c.candidatePseudo.toLowerCase()))
+      .sort((a, b) => {
+        if (b.countR5 !== a.countR5) return b.countR5 - a.countR5;
+        if (a.realRank !== b.realRank) return a.realRank - b.realRank;
+        return a.candidatePseudo.localeCompare(b.candidatePseudo);
+      });
+
+    const electedR5List = candidatesForR5.slice(0, 10);
+    const r5Slots = Array.from({ length: 10 }, (_, i) => electedR5List[i] || null);
+
+    const leadersHtml = `
+      <!-- 1. LES 2 DIRIGEANTS SÉLECTIONNÉS -->
+      <div class="space-y-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h5 class="font-black text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+            <span>👑</span>
+            <span>Les 2 Dirigeants Sélectionnés</span>
+          </h5>
+          <span class="text-[10px] font-bold text-slate-400">Commandement</span>
         </div>
 
-        <!-- 1ère Place -->
-        <div class="podium-card podium-1 rounded-2xl p-2.5 border flex flex-col items-center justify-end text-center min-h-[130px] -translate-y-1 shadow-lg shadow-amber-500/10">
-          <i data-lucide="crown" class="w-5 h-5 text-amber-400 mb-0.5"></i>
-          <div class="w-7 h-7 rounded-full bg-amber-500/20 text-amber-300 font-black text-xs flex items-center justify-center border border-amber-500/40 mb-1">1</div>
-          <p class="font-black text-xs text-amber-200 truncate max-w-full">${top1 ? escapeHtml(top1.candidatePseudo) : '-'}</p>
-          ${top1 ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 mt-0.5">#${top1.realRank} Réel</span>` : ''}
-          <p class="text-[10px] font-bold text-amber-400 mt-1">${top1 ? `${top1.countTotal} vote${top1.countTotal > 1 ? 's' : ''} (${top1.percentage}%)` : '-'}</p>
-          ${top1 ? `<span class="text-[9px] text-amber-300 font-bold">${top1.countDirigeant} 👑 • ${top1.countR5} 🛡️</span>` : ''}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <!-- 1er Dirigeant : Commandant -->
+          <div class="card-commandant rounded-2xl p-3.5 border flex flex-col justify-between">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-sm">
+                <span>🎖️</span>
+                <span>1er : Commandant</span>
+              </span>
+              ${electedCommandant ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">#${electedCommandant.realRank} Réel</span>` : ''}
+            </div>
+
+            <div class="py-2.5">
+              ${electedCommandant ? `
+                <p class="text-base font-black text-white truncate">${escapeHtml(electedCommandant.candidatePseudo)}</p>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="font-black text-xs text-amber-300">${electedCommandant.countDirigeant} vote${electedCommandant.countDirigeant > 1 ? 's' : ''} 👑</span>
+                  <span class="text-[10px] text-slate-400">(${electedCommandant.countTotal} total)</span>
+                </div>
+              ` : `
+                <p class="text-xs text-slate-500 italic">En attente de votes Dirigeant...</p>
+              `}
+            </div>
+
+            <div class="pt-1.5 border-t border-amber-500/20 flex items-center justify-between text-[10px] text-slate-400">
+              <span>Rôle suprême</span>
+              <span class="font-bold text-amber-400">Commandant en chef</span>
+            </div>
+          </div>
+
+          <!-- 2ème Dirigeant : Capitaine -->
+          <div class="card-capitaine rounded-2xl p-3.5 border flex flex-col justify-between">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 flex items-center gap-1 shadow-sm">
+                <span>⚓</span>
+                <span>2ème : Capitaine</span>
+              </span>
+              ${electedCapitaine ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/30">#${electedCapitaine.realRank} Réel</span>` : ''}
+            </div>
+
+            <div class="py-2.5">
+              ${electedCapitaine ? `
+                <p class="text-base font-black text-white truncate">${escapeHtml(electedCapitaine.candidatePseudo)}</p>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="font-black text-xs text-sky-300">${electedCapitaine.countDirigeant} vote${electedCapitaine.countDirigeant > 1 ? 's' : ''} 👑</span>
+                  <span class="text-[10px] text-slate-400">(${electedCapitaine.countTotal} total)</span>
+                </div>
+              ` : `
+                <p class="text-xs text-slate-500 italic">En attente de votes Dirigeant...</p>
+              `}
+            </div>
+
+            <div class="pt-1.5 border-t border-sky-500/20 flex items-center justify-between text-[10px] text-slate-400">
+              <span>Second de clan</span>
+              <span class="font-bold text-sky-400">Capitaine en second</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. LES 10 R5 SÉLECTIONNÉS -->
+      <div class="space-y-2 mb-4">
+        <div class="flex items-center justify-between">
+          <h5 class="font-black text-xs uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+            <span>🛡️</span>
+            <span>Les 10 R5 Sélectionnés</span>
+          </h5>
+          <span class="text-[10px] font-bold text-purple-300">${electedR5List.length} / 10 élu${electedR5List.length > 1 ? 's' : ''}</span>
         </div>
 
-        <!-- 3ème Place -->
-        <div class="podium-card podium-3 rounded-2xl p-2.5 border flex flex-col items-center justify-end text-center min-h-[100px]">
-          <div class="w-6 h-6 rounded-full bg-amber-700/20 text-amber-500 font-bold text-xs flex items-center justify-center border border-amber-700/40 mb-1">3</div>
-          <p class="font-bold text-xs text-white truncate max-w-full">${top3 ? escapeHtml(top3.candidatePseudo) : '-'}</p>
-          ${top3 ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mt-0.5">#${top3.realRank} Réel</span>` : ''}
-          <p class="text-[10px] text-slate-400 mt-1">${top3 ? `${top3.countTotal} vote${top3.countTotal > 1 ? 's' : ''} (${top3.percentage}%)` : '-'}</p>
-          ${top3 ? `<span class="text-[9px] text-amber-300/80">${top3.countDirigeant} 👑 • ${top3.countR5} 🛡️</span>` : ''}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
+          ${r5Slots.map((r5, i) => {
+            if (r5) {
+              return `
+                <div class="p-2 rounded-xl bg-slate-900/90 border border-purple-500/30 flex items-center justify-between gap-2 hover:border-purple-500/60 transition shadow-sm">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-5 h-5 rounded-lg bg-purple-500/20 text-purple-300 font-black text-[10px] flex items-center justify-center border border-purple-500/40 shrink-0">
+                      ${i + 1}
+                    </span>
+                    <div class="min-w-0">
+                      <span class="font-bold text-xs text-white truncate block">${escapeHtml(r5.candidatePseudo)}</span>
+                      <span class="px-1 py-0.2 rounded text-[8px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">#${r5.realRank} Réel</span>
+                    </div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                    ${r5.countR5} vote${r5.countR5 > 1 ? 's' : ''} 🛡️
+                  </span>
+                </div>
+              `;
+            } else {
+              return `
+                <div class="p-2 rounded-xl bg-slate-950/40 border border-dashed border-slate-800 flex items-center gap-2 opacity-40">
+                  <span class="w-5 h-5 rounded-lg bg-slate-800 text-slate-500 font-bold text-[10px] flex items-center justify-center shrink-0">
+                    ${i + 1}
+                  </span>
+                  <span class="text-[11px] text-slate-500 italic">Place vacante...</span>
+                </div>
+              `;
+            }
+          }).join('')}
         </div>
       </div>
     `;
@@ -2784,15 +2861,22 @@ function renderCurrentPollDetail() {
         <div class="flex items-center justify-between pb-2 border-b border-slate-800">
           <h4 class="font-black text-white text-base flex items-center gap-2">
             <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-400"></i>
-            <span>${poll.is_active ? 'Résultats en Direct' : 'Résultats Définitifs'}</span>
+            <span>${poll.is_active ? 'Sélection & Résultats' : 'Sélection Définitive'}</span>
           </h4>
           <span class="text-xs font-bold text-slate-400">${totalVotes} vote${totalVotes > 1 ? 's' : ''} (${distinctVotersCount} votant${distinctVotersCount > 1 ? 's' : ''})</span>
         </div>
 
-        ${podiumsHtml}
+        ${leadersHtml}
 
-        <div class="space-y-1 divide-y divide-slate-800/60 max-h-[280px] overflow-y-auto pr-1">
-          ${progressBarsHtml}
+        <!-- Détail de tous les votes exprimés -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="flex items-center justify-between text-xs text-slate-400 font-bold">
+            <span>Tous les votes exprimés</span>
+            <span>${sortedCandidates.length} membre${sortedCandidates.length > 1 ? 's' : ''}</span>
+          </div>
+          <div class="space-y-1 divide-y divide-slate-800/60 max-h-[220px] overflow-y-auto pr-1">
+            ${progressBarsHtml}
+          </div>
         </div>
       </div>
     `;
@@ -2849,7 +2933,7 @@ function attachPollEventListeners(poll) {
     }
   });
 
-  // Clic sur suppression d'un vote candidat individuel
+  // Clic sur suppression d'un vote candidat individuel (1 clic direct)
   document.querySelectorAll('.btn-remove-single-vote').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -2860,7 +2944,7 @@ function attachPollEventListeners(poll) {
     });
   });
 
-  // Clic sur bouton pour changer le rôle d'un candidat déjà voté (Passer en R5 / Passer en Dirigeant)
+  // Clic sur bouton pour changer le rôle d'un candidat déjà voté (Passer en R5 / Passer en Dirigeant en 1 clic)
   document.querySelectorAll('.btn-switch-candidate-role').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -2885,15 +2969,14 @@ function attachPollEventListeners(poll) {
     });
   }
 
-  // Clic sur un bouton de vote de rôle direct (👑 Dirigeant ou 🛡️ R5)
+  // Clic sur un bouton de vote de rôle direct (👑 Dirigeant ou 🛡️ R5) : 1 SEUL CLIC SANS CONFIRMATION
   document.querySelectorAll('.btn-vote-candidate-role').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const candidateId = btn.dataset.candidateId;
       const candidatePseudo = btn.dataset.candidatePseudo;
       const role = btn.dataset.role || 'Dirigeant';
-      const rank = btn.dataset.rank;
-      openVoteConfirmModal(candidateId, candidatePseudo, role, rank);
+      await executeDirectVote(candidateId, candidatePseudo, role);
     });
   });
 
@@ -2918,11 +3001,13 @@ function attachPollEventListeners(poll) {
 }
 
 /**
- * Ouvre la modale de confirmation de vote avec choix du rôle (Dirigeant vs R5)
+ * Enregistrement instantané du vote en 1 clic (sans aucune modale de confirmation)
+ * La carte s'affiche immédiatement en vert
  */
-function openVoteConfirmModal(candidateId, candidatePseudo, defaultRole = 'Dirigeant', candidateRank = null) {
+async function executeDirectVote(candidateId, candidatePseudo, role) {
   if (!state.connectedPseudo) {
     openPlayerModal();
+    showToast("Veuillez d'abord sélectionner votre pseudo pour voter", "warning");
     return;
   }
 
@@ -2946,73 +3031,23 @@ function openVoteConfirmModal(candidateId, candidatePseudo, defaultRole = 'Dirig
     return;
   }
 
-  state.selectedCandidate = { id: candidateId, pseudo: candidatePseudo };
-  state.selectedVoteRole = defaultRole === 'R5' ? 'R5' : 'Dirigeant';
-
-  const modal = document.getElementById('vote-confirm-modal');
-  const nameSpan = document.getElementById('vote-confirm-candidate-name');
-  const rankSpan = document.getElementById('vote-confirm-candidate-rank');
-  const quotaHint = document.getElementById('vote-confirm-quota-hint');
-
-  if (nameSpan) nameSpan.textContent = candidatePseudo;
-  if (rankSpan) {
-    if (candidateRank) {
-      rankSpan.textContent = `#${candidateRank} Réel`;
-      rankSpan.classList.remove('hidden');
-    } else {
-      rankSpan.classList.add('hidden');
-    }
-  }
-
-  if (quotaHint) {
-    if (isUpdatingExisting) {
-      quotaHint.innerHTML = `<span class="text-amber-400 font-semibold">Modification de votre vote existant pour ce joueur</span>`;
-    } else {
-      quotaHint.textContent = `Vote ${userVotes.length + 1} sur ${maxVotes} maximum`;
-    }
-  }
-
-  updateVoteModalRoleUI();
-  modal?.classList.remove('hidden');
-}
-
-/**
- * Exécute l'enregistrement du vote confirmé
- */
-async function executeVoteConfirm() {
-  if (!state.selectedCandidate || !state.currentPollId || !state.connectedPseudo) return;
-
-  const modal = document.getElementById('vote-confirm-modal');
-  const confirmBtn = document.getElementById('btn-execute-vote-confirm');
-  const originalHtml = confirmBtn.innerHTML;
-
-  confirmBtn.disabled = true;
-  confirmBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Enregistrement...`;
-  initLucide();
-
   try {
     await castVote(
       state.currentPollId,
       state.connectedPseudo,
-      state.selectedCandidate.id,
-      state.selectedCandidate.pseudo,
-      state.selectedVoteRole || 'Dirigeant'
+      candidateId,
+      candidatePseudo,
+      role
     );
 
     triggerConfetti();
-    showToast(`Vote pour ${state.selectedCandidate.pseudo} enregistré en tant que ${state.selectedVoteRole} !`, "success");
-    modal?.classList.add('hidden');
-    state.selectedCandidate = null;
+    showToast(`✓ Vote enregistré : ${candidatePseudo} (${role})`, "success");
 
-    // Recharger les votes du sondage
+    // Rechargement immédiat : la carte passe instantanément en vert !
     await loadVotesForCurrentPoll();
   } catch (err) {
-    console.error("Erreur vote:", err);
+    console.error("Erreur vote direct:", err);
     showToast(`Erreur lors du vote : ${err.message || 'Problème de connexion'}`, "error");
-  } finally {
-    confirmBtn.disabled = false;
-    confirmBtn.innerHTML = originalHtml;
-    initLucide();
   }
 }
 
