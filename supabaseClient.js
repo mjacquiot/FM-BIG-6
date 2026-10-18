@@ -270,3 +270,262 @@ export function onAuthStateChange(callback) {
   });
   return subscription;
 }
+
+/**
+ * =============================================================================
+ * MODULE SONDAGES & VOTES DE POPULARITÉ
+ * =============================================================================
+ */
+
+/**
+ * Récupère la configuration globale des votes (activé/désactivé)
+ */
+export async function fetchVotesSettings() {
+  if (!supabase) return { enabled: false, show_results: true, isMissingTable: false };
+
+  try {
+    const { data, error } = await supabase
+      .from("fm_big6_settings")
+      .select("value")
+      .eq("key", "votes_module")
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return { enabled: false, show_results: true, isMissingTable: true };
+      }
+      console.warn("Avertissement récupération paramètres votes:", error.message);
+      return { enabled: false, show_results: true, isMissingTable: false };
+    }
+
+    if (!data || !data.value) {
+      return { enabled: false, show_results: true, isMissingTable: false };
+    }
+
+    return {
+      enabled: Boolean(data.value.enabled),
+      show_results: data.value.show_results !== false,
+      isMissingTable: false
+    };
+  } catch (err) {
+    console.warn("Exception récupération paramètres votes:", err);
+    return { enabled: false, show_results: true, isMissingTable: false };
+  }
+}
+
+/**
+ * Met à jour la configuration des votes (action admin)
+ */
+export async function updateVotesSettings(settings) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+
+  const payload = {
+    key: "votes_module",
+    value: {
+      enabled: Boolean(settings.enabled),
+      show_results: settings.show_results !== false
+    },
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from("fm_big6_settings")
+    .upsert(payload, { onConflict: 'key' })
+    .select();
+
+  if (error) {
+    console.error("Erreur lors de la mise à jour des paramètres votes:", error);
+    throw error;
+  }
+  return data?.[0]?.value || payload.value;
+}
+
+/**
+ * Récupère tous les sondages
+ */
+export async function fetchPolls() {
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from("fm_big6_polls")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      console.error("Erreur récupération des sondages:", error);
+      throw error;
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("Exception récupération sondages:", err);
+    return [];
+  }
+}
+
+/**
+ * Crée un nouveau sondage (action admin)
+ */
+export async function createPoll(pollData) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+
+  const payload = {
+    title: pollData.title.trim(),
+    description: pollData.description ? pollData.description.trim() : '',
+    category: pollData.category || 'chef',
+    is_active: pollData.is_active !== undefined ? Boolean(pollData.is_active) : true,
+    allow_self_vote: Boolean(pollData.allow_self_vote)
+  };
+
+  const { data, error } = await supabase
+    .from("fm_big6_polls")
+    .insert([payload])
+    .select();
+
+  if (error) {
+    console.error("Erreur création sondage:", error);
+    throw error;
+  }
+  return data?.[0];
+}
+
+/**
+ * Modifie un sondage existant (action admin)
+ */
+export async function updatePoll(pollId, updates) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+
+  const payload = { ...updates, updated_at: new Date().toISOString() };
+  const { data, error } = await supabase
+    .from("fm_big6_polls")
+    .update(payload)
+    .eq("id", pollId)
+    .select();
+
+  if (error) {
+    console.error("Erreur mise à jour sondage:", error);
+    throw error;
+  }
+  return data?.[0];
+}
+
+/**
+ * Supprime un sondage (action admin)
+ */
+export async function deletePoll(pollId) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+
+  const { error } = await supabase
+    .from("fm_big6_polls")
+    .delete()
+    .eq("id", pollId);
+
+  if (error) {
+    console.error("Erreur suppression sondage:", error);
+    throw error;
+  }
+  return true;
+}
+
+/**
+ * Récupère tous les votes d'un sondage
+ */
+export async function fetchVotesForPoll(pollId) {
+  if (!supabase || !pollId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from("fm_big6_votes")
+      .select("*")
+      .eq("poll_id", pollId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      console.error("Erreur récupération des votes:", error);
+      throw error;
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("Exception récupération votes:", err);
+    return [];
+  }
+}
+
+/**
+ * Enregistre ou modifie le vote d'un joueur
+ */
+export async function castVote(pollId, voterPseudo, candidateId, candidatePseudo) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+  if (!pollId || !voterPseudo || !candidatePseudo) {
+    throw new Error("Paramètres de vote incomplets");
+  }
+
+  const cleanVoter = voterPseudo.trim();
+  const normalizedVoter = cleanVoter.toLowerCase();
+  const cleanCandidate = candidatePseudo.trim();
+
+  const payload = {
+    poll_id: pollId,
+    voter_pseudo: cleanVoter,
+    voter_pseudo_normalized: normalizedVoter,
+    candidate_id: candidateId || null,
+    candidate_pseudo: cleanCandidate,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from("fm_big6_votes")
+    .upsert(payload, { onConflict: 'poll_id, voter_pseudo_normalized' })
+    .select();
+
+  if (error) {
+    console.error("Erreur enregistrement vote:", error);
+    throw error;
+  }
+  return data?.[0];
+}
+
+/**
+ * Annule le vote d'un joueur
+ */
+export async function cancelVote(pollId, voterPseudo) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+  const normalizedVoter = voterPseudo.trim().toLowerCase();
+
+  const { error } = await supabase
+    .from("fm_big6_votes")
+    .delete()
+    .eq("poll_id", pollId)
+    .eq("voter_pseudo_normalized", normalizedVoter);
+
+  if (error) {
+    console.error("Erreur annulation vote:", error);
+    throw error;
+  }
+  return true;
+}
+
+/**
+ * Réinitialise tous les votes d'un sondage (action admin)
+ */
+export async function resetPollVotes(pollId) {
+  if (!supabase) throw new Error("Client Supabase non initialisé");
+
+  const { error } = await supabase
+    .from("fm_big6_votes")
+    .delete()
+    .eq("poll_id", pollId);
+
+  if (error) {
+    console.error("Erreur réinitialisation votes:", error);
+    throw error;
+  }
+  return true;
+}
+

@@ -53,8 +53,14 @@
         </div>
       </div>
 
-      <!-- Statut Admin (si connecté) & Bouton Rafraîchir -->
+      <!-- Statut Joueur, Statut Admin & Bouton Rafraîchir -->
       <div class="flex items-center gap-2">
+        <!-- Bouton / Badge Joueur Connecté -->
+        <button type="button" id="header-player-btn" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700/60 transition active:scale-95 text-xs font-semibold" title="Mon pseudo (cliquer pour changer)">
+          <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span id="header-player-pseudo" class="max-w-[100px] truncate">Non identifié</span>
+        </button>
+
         <div id="admin-badge" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold">
           <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
           <span class="hidden md:inline">Admin</span>
@@ -72,7 +78,7 @@
 
     <!-- Sélecteur d'onglets principal (Mobile-first) -->
     <div class="max-w-4xl mx-auto px-4 pb-2">
-      <nav class="grid grid-cols-2 p-1 bg-slate-900/90 rounded-2xl border border-slate-800" role="tablist">
+      <nav id="main-nav-bar" class="grid grid-cols-2 p-1 bg-slate-900/90 rounded-2xl border border-slate-800 transition-all duration-200" role="tablist">
         <button id="tab-btn-inscription" class="main-tab-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-sm transition-all duration-200 bg-brand-600 text-white shadow-md shadow-brand-600/30" role="tab" aria-selected="true">
           <i data-lucide="user-plus" class="w-4 h-4"></i>
           <span>Inscription</span>
@@ -81,6 +87,11 @@
           <i data-lucide="trophy" class="w-4 h-4"></i>
           <span>Résultats</span>
           <span id="header-players-count" class="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">0</span>
+        </button>
+        <button id="tab-btn-sondages" class="main-tab-btn hidden flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-sm transition-all duration-200 text-slate-400 hover:text-slate-200" role="tab" aria-selected="false">
+          <i data-lucide="vote" class="w-4 h-4 text-purple-400"></i>
+          <span>Sondages</span>
+          <span id="header-polls-count" class="hidden text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-extrabold border border-purple-500/30">0</span>
         </button>
       </nav>
     </div>
@@ -954,6 +965,111 @@
       </div>
 
     </section>
+
+    <!-- ================================================================= -->
+    <!-- ONGLET 3 : SONDAGES & VOTES DE POPULARITÉ -->
+    <!-- ================================================================= -->
+    <section id="view-sondages" class="hidden space-y-5">
+
+      <!-- Notice pour l'administrateur si le module est désactivé -->
+      <div id="polls-disabled-admin-notice" class="hidden glass-card border-amber-500/50 bg-amber-950/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-500/10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+            <i data-lucide="lock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-500/30 text-amber-300 border border-amber-500/40">Mode Admin</span>
+              <h3 class="text-sm font-bold text-white">Module Sondages Désactivé</h3>
+            </div>
+            <p class="text-xs text-slate-300 mt-0.5">Ce module est actuellement masqué pour les membres. Vous pouvez le configurer, puis l'activer à tout moment.</p>
+          </div>
+        </div>
+        <button type="button" id="btn-quick-toggle-polls-active" class="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95 shrink-0 flex items-center gap-1.5">
+          <i data-lucide="power" class="w-3.5 h-3.5"></i>
+          <span>Activer pour les membres</span>
+        </button>
+      </div>
+
+      <!-- Notice si le module est désactivé et l'utilisateur n'est pas admin -->
+      <div id="polls-disabled-public-view" class="hidden glass-card rounded-3xl p-8 md:p-12 text-center space-y-4">
+        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700/60 mx-auto flex items-center justify-center text-slate-500 shadow-xl">
+          <i data-lucide="lock" class="w-8 h-8"></i>
+        </div>
+        <div class="space-y-1">
+          <h3 class="text-xl font-black text-white font-heading">Sondages Actuellement Fermés</h3>
+          <p class="text-sm text-slate-400 max-w-md mx-auto">
+            Les sondages et votes de popularité ne sont pas actifs pour le moment. L'administrateur les activera lors des prochaines sessions de vote !
+          </p>
+        </div>
+        <div class="pt-2">
+          <button type="button" id="btn-back-to-rankings-from-polls" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+            Retourner aux résultats
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenu principal des sondages (visible quand activé OU par admin) -->
+      <div id="polls-active-container" class="space-y-5">
+        
+        <!-- 1. Bannière d'identification du Joueur Votant -->
+        <div id="voter-identity-card" class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-800">
+          <div class="flex items-center gap-3">
+            <div id="voter-avatar-icon" class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shrink-0">
+              <i data-lucide="user-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400">Votre identité de vote :</span>
+                <span id="voter-connected-pseudo" class="font-black text-white text-sm text-indigo-300">Non connecté</span>
+              </div>
+              <p id="voter-identity-hint" class="text-[11px] text-slate-400 mt-0.5">
+                Vous devez être connecté sous votre nom de joueur inscrit pour pouvoir voter.
+              </p>
+            </div>
+          </div>
+          <button type="button" id="btn-change-voter-pseudo" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 shrink-0">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span id="btn-change-voter-pseudo-text">S'identifier</span>
+          </button>
+        </div>
+
+        <!-- 2. Barre d'administration rapide (Bouton Nouveau Sondage & Actions) -->
+        <div id="admin-polls-toolbar" class="hidden glass-card rounded-2xl p-3 md:p-4 bg-gradient-to-r from-amber-950/30 via-slate-900/80 to-purple-950/30 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 text-[10px] font-black uppercase rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Admin</span>
+            <span class="text-xs font-bold text-white">Gestion des Sondages de Popularité</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-admin-create-poll-open" class="px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition active:scale-95">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              <span>Nouveau Sondage</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Sélecteur de Sondages (Onglets horizontaux) -->
+        <div class="glass-card rounded-2xl p-3 md:p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="list-filter" class="w-4 h-4 text-purple-400"></i>
+              <span>Sondages Disponibles</span>
+            </span>
+            <span id="polls-total-badge" class="text-xs text-slate-500 font-semibold">0 sondage</span>
+          </div>
+          <div id="polls-tabs-list" class="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5">
+            <!-- Dynamiquement généré par app.js -->
+          </div>
+        </div>
+
+        <!-- 4. Contenu du Sondage Actif (Zone de Vote + Résultats) -->
+        <div id="poll-detail-container" class="space-y-5">
+          <!-- Dynamiquement généré par app.js -->
+        </div>
+
+      </div>
+
+    </section>
   </main>
 
   <!-- ================================================================= -->
@@ -1028,8 +1144,35 @@
           <ul class="space-y-1.5 list-disc list-inside text-slate-400">
             <li>Les boutons rouges de suppression <i data-lucide="trash-2" class="w-3.5 h-3.5 inline text-red-400"></i> sont désormais actifs dans tous les tableaux.</li>
             <li>Vous pouvez supprimer un joueur ayant démissionné ou corriger une erreur.</li>
-            <li>Dans le menu <strong>Ordre d'Ascension</strong>, le bouton vert <i data-lucide="check-check" class="w-3.5 h-3.5 inline text-emerald-400"></i> permet de valider automatiquement l'ascension effectuée d'un joueur (décocher le souhait, +1 ascension et remise à 0 des ressources).</li>
+            <li>Dans le menu <strong>Ordre d'Ascension</strong>, le bouton vert <i data-lucide="check-check" class="w-3.5 h-3.5 inline text-emerald-400"></i> permet de valider automatiquement l'ascension effectuée d'un joueur.</li>
           </ul>
+        </div>
+
+        <!-- Section Gestion des Sondages dans l'Espace Admin -->
+        <div class="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/30 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-2 text-xs font-bold text-white">
+              <i data-lucide="vote" class="w-4 h-4 text-purple-400"></i>
+              <span>Module Sondages & Votes</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="admin-polls-enable-toggle" class="sr-only peer">
+              <div class="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+          <p class="text-[11px] text-slate-300">
+            Activez ou désactivez les sondages de popularité (devenir chef, définir des rangs) pour l'ensemble des personnes connectées sous leur pseudo.
+          </p>
+          <div class="flex items-center gap-2 pt-1">
+            <button type="button" id="btn-admin-modal-new-poll" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 transition flex items-center justify-center gap-1.5">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Nouveau sondage</span>
+            </button>
+            <button type="button" id="btn-admin-modal-goto-polls" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 transition flex items-center justify-center gap-1.5">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              <span>Ouvrir les sondages</span>
+            </button>
+          </div>
         </div>
 
         <button id="btn-close-admin-panel" class="w-full py-2.5 rounded-xl font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm transition">
@@ -1138,12 +1281,226 @@
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- MODALE D'IDENTIFICATION DU JOUEUR (CONNEXION SUR SON NOM) -->
+  <!-- ================================================================= -->
+  <div id="player-login-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-indigo-500/30 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center">
+            <i data-lucide="user" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-base text-white">Mon Identité Joueur</h3>
+            <p class="text-xs text-slate-400">Pour voter sous votre pseudo</p>
+          </div>
+        </div>
+        <button id="btn-close-player-modal" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <label for="player-select-dropdown" class="block text-xs font-bold uppercase text-slate-300">
+          Sélectionnez votre pseudo dans la liste
+        </label>
+        <select id="player-select-dropdown" class="w-full px-3.5 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <option value="">-- Choisir mon pseudo --</option>
+        </select>
+
+        <div class="relative flex items-center justify-center my-2">
+          <div class="border-t border-slate-800 w-full"></div>
+          <span class="bg-slate-900 px-2 text-[10px] text-slate-500 uppercase font-bold">ou saisissez-le</span>
+          <div class="border-t border-slate-800 w-full"></div>
+        </div>
+
+        <div>
+          <input type="text" id="player-custom-input" placeholder="Tapez votre pseudo exact..."
+            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+        <p class="text-[11px] text-slate-400">
+          Votre pseudo doit être déjà inscrit dans l'application pour que vos votes soient valides.
+        </p>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button type="button" id="btn-confirm-player-login" class="w-full py-3 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-95 text-sm">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Confirmer mon identité</span>
+        </button>
+        <button type="button" id="btn-clear-player-login" class="w-full py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-red-400 transition">
+          Déconnexion / Changer de joueur
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE CRÉATION / ÉDITION DE SONDAGE (ADMIN) -->
+  <!-- ================================================================= -->
+  <div id="poll-create-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-amber-500/40 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+            <i data-lucide="vote" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-base text-white">Nouveau Sondage</h3>
+            <p class="text-xs text-slate-400">Créer un sondage de vote pour les joueurs</p>
+          </div>
+        </div>
+        <button id="btn-close-poll-create-modal" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modèles rapides en un clic -->
+      <div class="space-y-1.5">
+        <label class="block text-[11px] font-bold uppercase text-slate-400">Modèles pré-remplis :</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="poll-preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-amber-300 border border-slate-700 transition"
+            data-title="👑 Élection du Chef de Clan"
+            data-desc="Votez pour le joueur qui dirigera et représentera notre clan !"
+            data-cat="chef">
+            👑 Chef de Clan
+          </button>
+          <button type="button" class="poll-preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-purple-300 border border-slate-700 transition"
+            data-title="⚔️ Nomination Bras Droit / R4"
+            data-desc="Votez pour attribuer le rang d'officier / bras droit du clan."
+            data-cat="rangs">
+            ⚔️ Bras Droit / R4
+          </button>
+          <button type="button" class="poll-preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-sky-300 border border-slate-700 transition"
+            data-title="🌟 MVP de la Semaine"
+            data-desc="Quel joueur a été le plus méritant et actif cette semaine selon vous ?"
+            data-cat="popularite">
+            🌟 MVP de la Semaine
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-3.5">
+        <div>
+          <label for="poll-form-title" class="block text-xs font-bold uppercase text-slate-300 mb-1">
+            Titre du sondage <span class="text-red-400">*</span>
+          </label>
+          <input type="text" id="poll-form-title" placeholder="Ex: Élection du Chef de Clan"
+            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div>
+          <label for="poll-form-desc" class="block text-xs font-bold uppercase text-slate-300 mb-1">
+            Question ou Consigne
+          </label>
+          <textarea id="poll-form-desc" rows="2" placeholder="Ex: Choisissez parmi les membres du clan celui qui correspond le mieux au poste..."
+            class="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="poll-form-cat" class="block text-xs font-bold uppercase text-slate-300 mb-1">Catégorie</label>
+            <select id="poll-form-cat" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="chef">👑 Chef de Clan</option>
+              <option value="rangs">⚔️ Rangs & Officiers</option>
+              <option value="popularite">🌟 Popularité</option>
+              <option value="autre">📌 Autre</option>
+            </select>
+          </div>
+          <div>
+            <label for="poll-form-active" class="block text-xs font-bold uppercase text-slate-300 mb-1">Statut initial</label>
+            <select id="poll-form-active" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="true">🟢 Ouvert aux votes</option>
+              <option value="false">🔴 Clôturé / Pause</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer select-none">
+          <input type="checkbox" id="poll-form-allow-self" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-900 border-slate-700">
+          <span class="text-xs text-slate-300 font-medium">Autoriser un joueur à voter pour lui-même</span>
+        </label>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button type="button" id="btn-cancel-poll-create" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
+          Annuler
+        </button>
+        <button type="button" id="btn-submit-poll-create" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 transition active:scale-95 flex items-center justify-center gap-1.5">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Créer le sondage</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE DÉTAIL DES VOTES (ADMIN) -->
+  <!-- ================================================================= -->
+  <div id="poll-voters-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-purple-500/30 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center">
+            <i data-lucide="users" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-base text-white">Détail des Votants</h3>
+            <p id="poll-voters-modal-subtitle" class="text-xs text-slate-400">Contrôle de régularité par l'administration</p>
+          </div>
+        </div>
+        <button id="btn-close-poll-voters-modal" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto divide-y divide-slate-800/80 pr-1 text-xs" id="poll-voters-list-container">
+        <!-- Rempli par app.js -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex items-center justify-between shrink-0">
+        <span id="poll-voters-count-badge" class="text-xs font-bold text-slate-400">Total : 0 vote</span>
+        <button type="button" id="btn-close-poll-voters-bottom" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE CONFIRMATION DE VOTE -->
+  <!-- ================================================================= -->
+  <div id="vote-confirm-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-indigo-500/40 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+      <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/10">
+        <i data-lucide="check" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-lg text-white">Confirmer votre vote</h3>
+        <p class="text-xs text-slate-400 mt-1">
+          Vous êtes sur le point de voter pour :
+        </p>
+        <p id="vote-confirm-candidate-name" class="font-black text-lg text-indigo-300 mt-1"></p>
+        <p class="text-[11px] text-slate-500 mt-1">Votre vote sera pris en compte immédiatement.</p>
+      </div>
+      <div class="flex items-center gap-2 pt-1">
+        <button id="btn-cancel-vote-confirm" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
+          Annuler
+        </button>
+        <button id="btn-execute-vote-confirm" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md shadow-brand-600/30 transition">
+          Confirmer
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pied de page -->
   <footer class="mt-auto py-4 border-t border-slate-900 text-center text-xs text-slate-600">
     <p>FAS &bull; Développé pour la communauté &bull; Hébergé sur GitHub Pages</p>
   </footer>
 
   <!-- Scripts applicatifs en module ES6 (cache-buster anti-cache Discord) -->
-  <script type="module" src="./app.js?v=20261014_4"></script>
+  <script type="module" src="./app.js?v=20261018_1"></script>
 </body>
 </html>

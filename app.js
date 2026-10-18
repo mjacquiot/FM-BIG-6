@@ -11,8 +11,18 @@ import {
   loginAdmin,
   logoutAdmin,
   getAdminSession,
-  onAuthStateChange
-} from './supabaseClient.js?v=20261014_4';
+  onAuthStateChange,
+  fetchVotesSettings,
+  updateVotesSettings,
+  fetchPolls,
+  createPoll,
+  updatePoll,
+  deletePoll,
+  fetchVotesForPoll,
+  castVote,
+  cancelVote,
+  resetPollVotes
+} from './supabaseClient.js?v=20261018_1';
 
 import {
   simulateRealProgression,
@@ -21,16 +31,16 @@ import {
   getGeneralRealRanking,
   getGeneralRawRanking,
   getOrdreAscensionWithElus
-} from './rankingEngine.js?v=20261014_4';
+} from './rankingEngine.js?v=20261018_1';
 
-import { initDiscordActivity } from './discordActivity.js?v=20261014_4';
+import { initDiscordActivity } from './discordActivity.js?v=20261018_1';
 
 // =============================================================================
 // ÉTAT DE L'APPLICATION
 // =============================================================================
 const state = {
-  currentTab: 'inscription',  // 'inscription' | 'resultat'
-  currentStep: 0,            // 0 à 4 (étapes formulaire) ou 5 (succès)
+  currentTab: 'inscription',  // 'inscription' | 'resultat' | 'sondages'
+  currentStep: 0,            // 0 à 5 (étapes formulaire) ou 6 (succès)
   players: [],               // Données brutes depuis Supabase
   isLoading: false,
   isAdmin: false,
@@ -44,7 +54,23 @@ const state = {
   // Données du joueur en cours de saisie
   editingPlayerId: null,
   deleteTarget: null,
-  ascensionTarget: null
+  ascensionTarget: null,
+
+  // Module Sondages & Votes de popularité
+  connectedPseudo: (function() {
+    try {
+      return localStorage.getItem('fas_connected_pseudo') || null;
+    } catch (e) {
+      return null;
+    }
+  })(),
+  votesEnabled: false,
+  polls: [],
+  currentPollId: null,
+  pollVotes: [],
+  selectedCandidate: null,
+  candidateSearchQuery: '',
+  isChangingVote: false
 };
 
 // =============================================================================
@@ -57,8 +83,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initLucide();
   initTabNavigation();
   initFormControls();
+  initPlayerIdentity();
   initAdminFeatures();
   initRankingViews();
+  initPollsEvents();
 
   // Vérifier la session admin existante
   try {
@@ -95,11 +123,11 @@ function initLucide() {
 function initTabNavigation() {
   const btnInscription = document.getElementById('tab-btn-inscription');
   const btnResultat = document.getElementById('tab-btn-resultat');
-  const viewInscription = document.getElementById('view-inscription');
-  const viewResultat = document.getElementById('view-resultat');
+  const btnSondages = document.getElementById('tab-btn-sondages');
 
-  btnInscription.addEventListener('click', () => switchTab('inscription'));
-  btnResultat.addEventListener('click', () => switchTab('resultat'));
+  btnInscription?.addEventListener('click', () => switchTab('inscription'));
+  btnResultat?.addEventListener('click', () => switchTab('resultat'));
+  btnSondages?.addEventListener('click', () => switchTab('sondages'));
 
   document.getElementById('btn-refresh-data')?.addEventListener('click', async () => {
     const icon = document.querySelector('.refresh-icon');
@@ -127,27 +155,49 @@ function switchTab(tab) {
   state.currentTab = tab;
   const btnInscription = document.getElementById('tab-btn-inscription');
   const btnResultat = document.getElementById('tab-btn-resultat');
+  const btnSondages = document.getElementById('tab-btn-sondages');
   const viewInscription = document.getElementById('view-inscription');
   const viewResultat = document.getElementById('view-resultat');
+  const viewSondages = document.getElementById('view-sondages');
+
+  const allBtns = [btnInscription, btnResultat, btnSondages];
+  const allViews = [viewInscription, viewResultat, viewSondages];
+
+  allBtns.forEach(btn => {
+    if (!btn) return;
+    btn.classList.remove('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
+    btn.classList.add('text-slate-400');
+    btn.setAttribute('aria-selected', 'false');
+  });
+
+  allViews.forEach(v => {
+    if (!v) return;
+    v.classList.add('hidden');
+  });
 
   if (tab === 'inscription') {
-    btnInscription.classList.add('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
-    btnInscription.classList.remove('text-slate-400');
-    btnResultat.classList.remove('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
-    btnResultat.classList.add('text-slate-400');
-
-    viewInscription.classList.remove('hidden');
-    viewResultat.classList.add('hidden');
-  } else {
-    btnResultat.classList.add('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
-    btnResultat.classList.remove('text-slate-400');
-    btnInscription.classList.remove('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
-    btnInscription.classList.add('text-slate-400');
-
-    viewResultat.classList.remove('hidden');
-    viewInscription.classList.add('hidden');
-
+    if (btnInscription) {
+      btnInscription.classList.add('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
+      btnInscription.classList.remove('text-slate-400');
+      btnInscription.setAttribute('aria-selected', 'true');
+    }
+    if (viewInscription) viewInscription.classList.remove('hidden');
+  } else if (tab === 'resultat') {
+    if (btnResultat) {
+      btnResultat.classList.add('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
+      btnResultat.classList.remove('text-slate-400');
+      btnResultat.setAttribute('aria-selected', 'true');
+    }
+    if (viewResultat) viewResultat.classList.remove('hidden');
     renderRankings();
+  } else if (tab === 'sondages') {
+    if (btnSondages) {
+      btnSondages.classList.add('bg-brand-600', 'text-white', 'shadow-md', 'shadow-brand-600/30');
+      btnSondages.classList.remove('text-slate-400');
+      btnSondages.setAttribute('aria-selected', 'true');
+    }
+    if (viewSondages) viewSondages.classList.remove('hidden');
+    loadPollsData();
   }
 }
 
@@ -165,6 +215,13 @@ async function loadData(showToastFeedback = false) {
     if (countEl) countEl.textContent = state.players.length;
 
     renderRankings();
+    updatePlayerBadge();
+
+    // Charger la configuration des votes et les sondages
+    await loadVotesConfig();
+    if (state.votesEnabled || state.isAdmin) {
+      await loadPollsData();
+    }
 
     if (showToastFeedback) {
       showToast("Données actualisées avec succès", "success");
@@ -458,6 +515,9 @@ async function checkExistingPseudo() {
         statusMsg.classList.remove('hidden');
         initLucide();
       }
+      if (!state.connectedPseudo) {
+        setConnectedPlayer(existingPlayer.pseudo);
+      }
       showToast(`Données de ${existingPlayer.pseudo} pré-chargées`, "info");
     } else {
       state.editingPlayerId = null;
@@ -629,6 +689,9 @@ async function handleSubmitInscription() {
     if (banner) banner.classList.add('hidden');
 
     goToStep(6);
+    if (!isEditingAsAdmin) {
+      setConnectedPlayer(pseudo);
+    }
     showToast(isEditingAsAdmin ? `Profil de ${pseudo} mis à jour !` : `Scores enregistrés pour ${pseudo} !`, "success");
 
     // Recharger la liste en tâche de fond
@@ -1576,7 +1639,11 @@ function setAdminState(isAdmin, session = null) {
   }
 
   updateAdminModalView();
+  updatePollsNavVisibility();
   renderRankings();
+  if (state.currentTab === 'sondages') {
+    renderCurrentPollDetail();
+  }
 }
 
 async function handleAdminLogin() {
@@ -1887,3 +1954,1067 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// =============================================================================
+// MODULE SONDAGES & VOTES DE POPULARITÉ
+// =============================================================================
+
+/**
+ * Initialisation de l'identité joueur (connexion par son pseudo inscrit)
+ */
+function initPlayerIdentity() {
+  updatePlayerBadge();
+
+  // Bouton profil dans le header
+  document.getElementById('header-player-btn')?.addEventListener('click', () => {
+    openPlayerModal();
+  });
+
+  // Bouton profil dans la bannière de l'onglet sondages
+  document.getElementById('btn-change-voter-pseudo')?.addEventListener('click', () => {
+    openPlayerModal();
+  });
+
+  // Modale d'identification
+  const modal = document.getElementById('player-login-modal');
+  document.getElementById('btn-close-player-modal')?.addEventListener('click', () => {
+    modal?.classList.add('hidden');
+  });
+
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+
+  // Confirmation de l'identification
+  document.getElementById('btn-confirm-player-login')?.addEventListener('click', () => {
+    const dropdown = document.getElementById('player-select-dropdown');
+    const customInput = document.getElementById('player-custom-input');
+    let chosen = (dropdown?.value || customInput?.value || '').trim();
+
+    if (!chosen) {
+      showToast("Veuillez sélectionner ou saisir votre pseudo", "warning");
+      return;
+    }
+
+    const matched = state.players.find(p => p.pseudo.toLowerCase() === chosen.toLowerCase());
+    if (!matched) {
+      showToast(`Le joueur "${chosen}" n'est pas encore inscrit. Inscrivez-vous d'abord !`, "warning");
+      return;
+    }
+
+    setConnectedPlayer(matched.pseudo);
+    modal?.classList.add('hidden');
+  });
+
+  // Déconnexion d'identité
+  document.getElementById('btn-clear-player-login')?.addEventListener('click', () => {
+    clearConnectedPlayer();
+    modal?.classList.add('hidden');
+  });
+}
+
+function setConnectedPlayer(pseudo) {
+  if (!pseudo) return;
+  state.connectedPseudo = pseudo;
+  try {
+    localStorage.setItem('fas_connected_pseudo', pseudo);
+  } catch (e) {}
+  updatePlayerBadge();
+  if (state.currentTab === 'sondages') {
+    renderCurrentPollDetail();
+  }
+}
+
+function clearConnectedPlayer() {
+  state.connectedPseudo = null;
+  try {
+    localStorage.removeItem('fas_connected_pseudo');
+  } catch (e) {}
+  updatePlayerBadge();
+  if (state.currentTab === 'sondages') {
+    renderCurrentPollDetail();
+  }
+  showToast("Vous êtes déconnecté de votre profil joueur", "info");
+}
+
+function updatePlayerBadge() {
+  const badgeText = document.getElementById('header-player-pseudo');
+  const voterDisplay = document.getElementById('voter-connected-pseudo');
+  const voterBtnText = document.getElementById('btn-change-voter-pseudo-text');
+  const voterHint = document.getElementById('voter-identity-hint');
+  const voterAvatar = document.getElementById('voter-avatar-icon');
+
+  if (state.connectedPseudo) {
+    if (badgeText) badgeText.textContent = state.connectedPseudo;
+    if (voterDisplay) {
+      voterDisplay.textContent = state.connectedPseudo;
+      voterDisplay.className = 'font-black text-emerald-400 text-sm';
+    }
+    if (voterBtnText) voterBtnText.textContent = "Changer";
+    if (voterHint) voterHint.textContent = "Vos votes seront enregistrés et comptabilisés sous votre nom.";
+    if (voterAvatar) {
+      voterAvatar.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0';
+    }
+  } else {
+    if (badgeText) badgeText.textContent = "Non identifié";
+    if (voterDisplay) {
+      voterDisplay.textContent = "Non connecté";
+      voterDisplay.className = 'font-bold text-slate-400 text-sm';
+    }
+    if (voterBtnText) voterBtnText.textContent = "S'identifier";
+    if (voterHint) voterHint.textContent = "Vous devez être identifié avec votre pseudo de joueur inscrit pour pouvoir voter.";
+    if (voterAvatar) {
+      voterAvatar.className = 'w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0';
+    }
+  }
+}
+
+function openPlayerModal() {
+  const modal = document.getElementById('player-login-modal');
+  const dropdown = document.getElementById('player-select-dropdown');
+  const customInput = document.getElementById('player-custom-input');
+  if (!modal) return;
+
+  if (dropdown) {
+    dropdown.innerHTML = '<option value="">-- Choisir mon pseudo dans la liste --</option>';
+    const sorted = [...state.players].sort((a, b) => a.pseudo.localeCompare(b.pseudo, 'fr', { sensitivity: 'base' }));
+    sorted.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.pseudo;
+      opt.textContent = p.pseudo;
+      if (state.connectedPseudo && state.connectedPseudo.toLowerCase() === p.pseudo.toLowerCase()) {
+        opt.selected = true;
+      }
+      dropdown.appendChild(opt);
+    });
+  }
+
+  if (customInput) customInput.value = state.connectedPseudo || '';
+
+  modal.classList.remove('hidden');
+  initLucide();
+}
+
+/**
+ * Initialisation des écouteurs globaux pour les sondages et votes
+ */
+function initPollsEvents() {
+  // Toggle administrateur pour activer/désactiver le module
+  const togglePolls = document.getElementById('admin-polls-enable-toggle');
+  togglePolls?.addEventListener('change', async (e) => {
+    await toggleGlobalVotes(e.target.checked);
+  });
+
+  // Bouton rapide dans la notice admin si désactivé
+  document.getElementById('btn-quick-toggle-polls-active')?.addEventListener('click', async () => {
+    await toggleGlobalVotes(true);
+  });
+
+  // Bouton retour aux résultats depuis la notice publique
+  document.getElementById('btn-back-to-rankings-from-polls')?.addEventListener('click', () => {
+    switchTab('resultat');
+  });
+
+  // Boutons d'ouverture de la modale de création de sondage
+  const openCreatePollModal = () => {
+    const modal = document.getElementById('poll-create-modal');
+    const titleInput = document.getElementById('poll-form-title');
+    const descInput = document.getElementById('poll-form-desc');
+    const catInput = document.getElementById('poll-form-cat');
+    const activeInput = document.getElementById('poll-form-active');
+    const selfInput = document.getElementById('poll-form-allow-self');
+
+    if (titleInput) titleInput.value = '';
+    if (descInput) descInput.value = '';
+    if (catInput) catInput.value = 'chef';
+    if (activeInput) activeInput.value = 'true';
+    if (selfInput) selfInput.checked = false;
+
+    modal?.classList.remove('hidden');
+    initLucide();
+  };
+
+  document.getElementById('btn-admin-create-poll-open')?.addEventListener('click', openCreatePollModal);
+  document.getElementById('btn-admin-modal-new-poll')?.addEventListener('click', () => {
+    document.getElementById('admin-modal')?.classList.add('hidden');
+    openCreatePollModal();
+  });
+
+  document.getElementById('btn-admin-modal-goto-polls')?.addEventListener('click', () => {
+    document.getElementById('admin-modal')?.classList.add('hidden');
+    switchTab('sondages');
+  });
+
+  // Modèles rapides dans la modale de création
+  document.querySelectorAll('.poll-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const titleInput = document.getElementById('poll-form-title');
+      const descInput = document.getElementById('poll-form-desc');
+      const catInput = document.getElementById('poll-form-cat');
+      if (titleInput && btn.dataset.title) titleInput.value = btn.dataset.title;
+      if (descInput && btn.dataset.desc) descInput.value = btn.dataset.desc;
+      if (catInput && btn.dataset.cat) catInput.value = btn.dataset.cat;
+    });
+  });
+
+  // Fermeture modale création sondage
+  document.getElementById('btn-close-poll-create-modal')?.addEventListener('click', () => {
+    document.getElementById('poll-create-modal')?.classList.add('hidden');
+  });
+  document.getElementById('btn-cancel-poll-create')?.addEventListener('click', () => {
+    document.getElementById('poll-create-modal')?.classList.add('hidden');
+  });
+  document.getElementById('btn-submit-poll-create')?.addEventListener('click', handleCreatePollSubmit);
+
+  // Modale détail des votants
+  document.getElementById('btn-close-poll-voters-modal')?.addEventListener('click', () => {
+    document.getElementById('poll-voters-modal')?.classList.add('hidden');
+  });
+  document.getElementById('btn-close-poll-voters-bottom')?.addEventListener('click', () => {
+    document.getElementById('poll-voters-modal')?.classList.add('hidden');
+  });
+
+  // Modale de confirmation de vote
+  document.getElementById('btn-cancel-vote-confirm')?.addEventListener('click', () => {
+    document.getElementById('vote-confirm-modal')?.classList.add('hidden');
+    state.selectedCandidate = null;
+  });
+  document.getElementById('btn-execute-vote-confirm')?.addEventListener('click', executeVoteConfirm);
+}
+
+/**
+ * Charge la configuration générale des votes
+ */
+async function loadVotesConfig() {
+  try {
+    const settings = await fetchVotesSettings();
+    state.votesEnabled = Boolean(settings.enabled);
+    updatePollsNavVisibility();
+  } catch (err) {
+    console.warn("Erreur chargement config votes:", err);
+  }
+}
+
+/**
+ * Met à jour la visibilité du module selon les droits admin et l'activation
+ */
+function updatePollsNavVisibility() {
+  const tabBtn = document.getElementById('tab-btn-sondages');
+  const navBar = document.getElementById('main-nav-bar');
+  const adminNotice = document.getElementById('polls-disabled-admin-notice');
+  const publicNotice = document.getElementById('polls-disabled-public-view');
+  const pollsActiveContainer = document.getElementById('polls-active-container');
+  const toggleInput = document.getElementById('admin-polls-enable-toggle');
+  const adminToolbar = document.getElementById('admin-polls-toolbar');
+
+  const shouldShowTab = state.votesEnabled || state.isAdmin;
+
+  if (tabBtn) {
+    if (shouldShowTab) {
+      tabBtn.classList.remove('hidden');
+    } else {
+      tabBtn.classList.add('hidden');
+    }
+  }
+
+  if (navBar) {
+    if (shouldShowTab) {
+      navBar.className = 'grid grid-cols-3 p-1 bg-slate-900/90 rounded-2xl border border-slate-800 transition-all duration-200';
+    } else {
+      navBar.className = 'grid grid-cols-2 p-1 bg-slate-900/90 rounded-2xl border border-slate-800 transition-all duration-200';
+    }
+  }
+
+  if (toggleInput) {
+    toggleInput.checked = state.votesEnabled;
+  }
+
+  if (adminNotice) {
+    if (state.isAdmin && !state.votesEnabled) {
+      adminNotice.classList.remove('hidden');
+    } else {
+      adminNotice.classList.add('hidden');
+    }
+  }
+
+  if (adminToolbar) {
+    if (state.isAdmin) {
+      adminToolbar.classList.remove('hidden');
+    } else {
+      adminToolbar.classList.add('hidden');
+    }
+  }
+
+  if (publicNotice && pollsActiveContainer) {
+    if (!state.votesEnabled && !state.isAdmin) {
+      publicNotice.classList.remove('hidden');
+      pollsActiveContainer.classList.add('hidden');
+    } else {
+      publicNotice.classList.add('hidden');
+      pollsActiveContainer.classList.remove('hidden');
+    }
+  }
+}
+
+/**
+ * Charge la liste des sondages
+ */
+async function loadPollsData() {
+  try {
+    const polls = await fetchPolls();
+    state.polls = polls || [];
+
+    const badge = document.getElementById('polls-total-badge');
+    const headerCount = document.getElementById('header-polls-count');
+    const activePollsCount = state.polls.filter(p => p.is_active).length;
+
+    if (badge) badge.textContent = `${state.polls.length} sondage${state.polls.length > 1 ? 's' : ''}`;
+    if (headerCount) {
+      headerCount.textContent = activePollsCount;
+      if (activePollsCount > 0) {
+        headerCount.classList.remove('hidden');
+      } else {
+        headerCount.classList.add('hidden');
+      }
+    }
+
+    if (!state.currentPollId || !state.polls.find(p => p.id === state.currentPollId)) {
+      state.currentPollId = state.polls[0]?.id || null;
+    }
+
+    renderPollTabs();
+    await loadVotesForCurrentPoll();
+  } catch (err) {
+    console.error("Erreur chargement sondages:", err);
+  }
+}
+
+/**
+ * Rendu des onglets horizontaux pour basculer entre les sondages
+ */
+function renderPollTabs() {
+  const container = document.getElementById('polls-tabs-list');
+  if (!container) return;
+
+  if (state.polls.length === 0) {
+    container.innerHTML = `
+      <div class="p-3 text-xs text-slate-500">
+        ${state.isAdmin ? 'Aucun sondage pour le moment. Cliquez sur "Nouveau Sondage" pour en créer un !' : 'Aucun sondage disponible pour le moment.'}
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  state.polls.forEach(poll => {
+    const isActive = poll.id === state.currentPollId;
+    const statusIcon = poll.is_active ? '🟢' : '🔴';
+    const activeClass = isActive ? 'active' : 'bg-slate-800/90 text-slate-400 hover:text-white border-slate-700/80';
+    html += `
+      <button type="button" class="poll-tab-btn ${activeClass} px-3.5 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-2 shrink-0" data-poll-id="${poll.id}">
+        <span>${statusIcon}</span>
+        <span class="truncate max-w-[180px]">${escapeHtml(poll.title)}</span>
+      </button>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('.poll-tab-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      state.currentPollId = btn.dataset.pollId;
+      state.selectedCandidate = null;
+      state.isChangingVote = false;
+      renderPollTabs();
+      await loadVotesForCurrentPoll();
+    });
+  });
+}
+
+/**
+ * Charge les votes du sondage actif
+ */
+async function loadVotesForCurrentPoll() {
+  const detailContainer = document.getElementById('poll-detail-container');
+  if (!detailContainer) return;
+
+  if (!state.currentPollId) {
+    detailContainer.innerHTML = `
+      <div class="glass-card rounded-3xl p-8 text-center text-slate-500 space-y-2">
+        <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-600"></i>
+        <p class="text-sm font-semibold text-slate-400">Aucun sondage disponible.</p>
+        ${state.isAdmin ? '<p class="text-xs">Utilisez le bouton ci-dessus pour créer le premier sondage.</p>' : ''}
+      </div>
+    `;
+    initLucide();
+    return;
+  }
+
+  const poll = state.polls.find(p => p.id === state.currentPollId);
+  if (!poll) return;
+
+  try {
+    const votes = await fetchVotesForPoll(state.currentPollId);
+    state.pollVotes = votes || [];
+    renderCurrentPollDetail();
+  } catch (err) {
+    console.error("Erreur chargement votes:", err);
+  }
+}
+
+/**
+ * Rendu complet du sondage en cours (Zone de vote + Résultats en direct)
+ */
+function renderCurrentPollDetail() {
+  const container = document.getElementById('poll-detail-container');
+  if (!container || !state.currentPollId) return;
+
+  const poll = state.polls.find(p => p.id === state.currentPollId);
+  if (!poll) return;
+
+  // Calcul du décompte des votes
+  const voteCounts = {};
+  state.pollVotes.forEach(v => {
+    const key = v.candidate_pseudo;
+    voteCounts[key] = (voteCounts[key] || 0) + 1;
+  });
+
+  const totalVotes = state.pollVotes.length;
+
+  // Tri des candidats par nombre de votes décroissant
+  const sortedCandidates = Object.keys(voteCounts).map(candidatePseudo => {
+    const count = voteCounts[candidatePseudo];
+    const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+    return { candidatePseudo, count, percentage };
+  }).sort((a, b) => b.count - a.count);
+
+  // Recherche du vote du joueur connecté
+  const userVote = state.connectedPseudo
+    ? state.pollVotes.find(v => v.voter_pseudo_normalized === state.connectedPseudo.toLowerCase())
+    : null;
+
+  // Badges de catégorie
+  const catBadges = {
+    chef: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1">👑 Chef de Clan</span>',
+    rangs: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 inline-flex items-center gap-1">⚔️ Rangs & Officiers</span>',
+    popularite: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 inline-flex items-center gap-1">🌟 Popularité</span>',
+    autre: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 inline-flex items-center gap-1">📌 Sondage</span>'
+  };
+
+  const statusBadge = poll.is_active
+    ? '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Ouvert aux votes</span>'
+    : '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/30 inline-flex items-center gap-1">🔴 Clôturé</span>';
+
+  // Barre d'administration pour ce sondage spécifique
+  const adminPollToolbar = state.isAdmin ? `
+    <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-toggle-poll-active px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${poll.is_active ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30'}" data-poll-id="${poll.id}">
+          <i data-lucide="${poll.is_active ? 'lock' : 'unlock'}" class="w-3.5 h-3.5"></i>
+          <span>${poll.is_active ? 'Clôturer ce sondage' : 'Rouvrir ce sondage'}</span>
+        </button>
+        <button type="button" class="btn-view-poll-voters px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/30 transition flex items-center gap-1.5" data-poll-id="${poll.id}">
+          <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+          <span>Détail des votants (${totalVotes})</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-reset-poll-votes px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/40 transition flex items-center gap-1.5" data-poll-id="${poll.id}">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span>Remettre à 0</span>
+        </button>
+        <button type="button" class="btn-delete-poll px-3 py-1.5 rounded-xl text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition flex items-center gap-1.5" data-poll-id="${poll.id}">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>Supprimer</span>
+        </button>
+      </div>
+    </div>
+  ` : '';
+
+  // Espace de vote (gauche)
+  let voteAreaHtml = '';
+
+  if (!poll.is_active) {
+    voteAreaHtml = `
+      <div class="glass-card rounded-2xl p-6 text-center space-y-3 border border-slate-800">
+        <div class="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 mx-auto flex items-center justify-center">
+          <i data-lucide="lock" class="w-6 h-6"></i>
+        </div>
+        <h4 class="font-bold text-white text-base">Ce sondage est clôturé</h4>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto">
+          Les votes sont terminés pour cette élection. Découvrez ci-contre les résultats définitifs !
+        </p>
+        ${userVote ? `
+          <div class="mt-3 p-3 rounded-xl bg-slate-900 border border-indigo-500/30 text-xs">
+            <span class="text-slate-400 block">Votre vote enregistré :</span>
+            <span class="font-black text-indigo-300 text-sm mt-0.5 block">${escapeHtml(userVote.candidate_pseudo)}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  } else if (!state.connectedPseudo) {
+    voteAreaHtml = `
+      <div class="glass-card rounded-2xl p-6 text-center space-y-4 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/20 to-slate-900/90">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/10">
+          <i data-lucide="user-plus" class="w-6 h-6"></i>
+        </div>
+        <div class="space-y-1">
+          <h4 class="font-bold text-white text-base">Identifiez-vous pour voter</h4>
+          <p class="text-xs text-slate-400 max-w-xs mx-auto">
+            Sélectionnez votre pseudo de joueur inscrit afin de pouvoir exprimer votre voix.
+          </p>
+        </div>
+        <button type="button" id="btn-prompt-connect-to-vote" class="px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 text-xs transition active:scale-95 flex items-center justify-center gap-2 mx-auto">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          <span>Sélectionner mon pseudo</span>
+        </button>
+      </div>
+    `;
+  } else if (userVote && !state.isChangingVote) {
+    voteAreaHtml = `
+      <div class="glass-card rounded-2xl p-6 space-y-4 border border-emerald-500/40 bg-gradient-to-br from-emerald-950/20 to-slate-900/90">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold uppercase text-emerald-400 tracking-wider">Vote Confirmé</span>
+            <h4 class="font-bold text-white text-sm">Vous avez voté pour :</h4>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 font-black flex items-center justify-center text-xs">
+              👑
+            </div>
+            <span class="font-black text-base text-white">${escapeHtml(userVote.candidate_pseudo)}</span>
+          </div>
+          <span class="text-[10px] text-slate-400">${userVote.created_at ? new Date(userVote.created_at).toLocaleDateString('fr-FR') : ''}</span>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" id="btn-allow-change-vote" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center justify-center gap-1.5">
+            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            <span>Changer mon vote</span>
+          </button>
+          <button type="button" id="btn-cancel-my-vote" class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition flex items-center justify-center gap-1" title="Annuler mon vote">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Formulaire de sélection d'un candidat
+    let candidatesList = [...state.players];
+    if (state.candidateSearchQuery) {
+      candidatesList = candidatesList.filter(p => p.pseudo.toLowerCase().includes(state.candidateSearchQuery));
+    }
+
+    const candidateCardsHtml = candidatesList.map(c => {
+      const isSelf = Boolean(state.connectedPseudo && state.connectedPseudo.toLowerCase() === c.pseudo.toLowerCase());
+      const isSelfForbidden = isSelf && !poll.allow_self_vote;
+      const isSelected = state.selectedCandidate && state.selectedCandidate.pseudo.toLowerCase() === c.pseudo.toLowerCase();
+
+      return `
+        <div class="candidate-card ${isSelfForbidden ? 'candidate-disabled' : ''} ${isSelected ? 'selected' : ''}"
+          data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}" data-forbidden="${isSelfForbidden}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-black flex items-center justify-center text-xs shrink-0">
+                ${c.pseudo.charAt(0).toUpperCase()}
+              </div>
+              <div class="min-w-0">
+                <span class="font-bold text-sm text-white truncate block">${escapeHtml(c.pseudo)}</span>
+                ${isSelf ? '<span class="text-[10px] text-amber-400 font-semibold">(C\'est vous)</span>' : ''}
+              </div>
+            </div>
+            ${isSelfForbidden ? `
+              <span class="text-[10px] text-slate-500 italic">Interdit</span>
+            ` : `
+              <button type="button" class="btn-vote-candidate px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition active:scale-95"
+                data-candidate-id="${c.id}" data-candidate-pseudo="${escapeHtml(c.pseudo)}">
+                Voter
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    voteAreaHtml = `
+      <div class="glass-card rounded-2xl p-4 md:p-5 space-y-4 border border-slate-800">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="font-black text-white text-base">Choisissez votre candidat</h4>
+            <p class="text-xs text-slate-400">
+              ${poll.allow_self_vote ? 'Vote libre pour n\'importe quel joueur inscrit.' : 'Vous devez voter pour un autre joueur du clan.'}
+            </p>
+          </div>
+          ${state.isChangingVote ? `
+            <button type="button" id="btn-cancel-changing-vote" class="text-xs text-slate-400 hover:text-white underline">
+              Annuler
+            </button>
+          ` : ''}
+        </div>
+
+        <!-- Recherche de candidat -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </div>
+          <input type="text" id="candidate-search-input" value="${escapeHtml(state.candidateSearchQuery || '')}" placeholder="Rechercher un candidat..."
+            class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <!-- Grille des candidats défilable -->
+        <div class="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+          ${candidatesList.length === 0 ? `
+            <div class="p-6 text-center text-slate-500 text-xs">
+              Aucun joueur ne correspond à votre recherche.
+            </div>
+          ` : candidateCardsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // Zone des résultats (droite)
+  let resultsAreaHtml = '';
+
+  if (totalVotes === 0) {
+    resultsAreaHtml = `
+      <div class="glass-card rounded-2xl p-8 text-center space-y-3 border border-slate-800">
+        <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 mx-auto flex items-center justify-center">
+          <i data-lucide="pie-chart" class="w-6 h-6"></i>
+        </div>
+        <h4 class="font-bold text-white text-base">Aucun vote enregistré</h4>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto">
+          Soyez le premier à voter pour ce sondage et ouvrir le classement de popularité !
+        </p>
+      </div>
+    `;
+  } else {
+    // Podiums Top 3 des votes
+    const top1 = sortedCandidates[0];
+    const top2 = sortedCandidates[1];
+    const top3 = sortedCandidates[2];
+
+    const podiumsHtml = `
+      <div class="grid grid-cols-3 gap-2 pt-2 mb-4">
+        <!-- 2ème Place -->
+        <div class="podium-card podium-2 rounded-2xl p-2.5 border flex flex-col items-center justify-end text-center min-h-[110px]">
+          <div class="w-6 h-6 rounded-full bg-slate-400/20 text-slate-300 font-bold text-xs flex items-center justify-center border border-slate-400/40 mb-1">2</div>
+          <p class="font-bold text-xs text-white truncate max-w-full">${top2 ? escapeHtml(top2.candidatePseudo) : '-'}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">${top2 ? `${top2.count} vote${top2.count > 1 ? 's' : ''} (${top2.percentage}%)` : '-'}</p>
+        </div>
+
+        <!-- 1ère Place -->
+        <div class="podium-card podium-1 rounded-2xl p-2.5 border flex flex-col items-center justify-end text-center min-h-[125px] -translate-y-1 shadow-lg shadow-amber-500/10">
+          <i data-lucide="crown" class="w-5 h-5 text-amber-400 mb-0.5"></i>
+          <div class="w-7 h-7 rounded-full bg-amber-500/20 text-amber-300 font-black text-xs flex items-center justify-center border border-amber-500/40 mb-1">1</div>
+          <p class="font-black text-xs text-amber-200 truncate max-w-full">${top1 ? escapeHtml(top1.candidatePseudo) : '-'}</p>
+          <p class="text-[10px] font-bold text-amber-400 mt-0.5">${top1 ? `${top1.count} vote${top1.count > 1 ? 's' : ''} (${top1.percentage}%)` : '-'}</p>
+        </div>
+
+        <!-- 3ème Place -->
+        <div class="podium-card podium-3 rounded-2xl p-2.5 border flex flex-col items-center justify-end text-center min-h-[95px]">
+          <div class="w-6 h-6 rounded-full bg-amber-700/20 text-amber-500 font-bold text-xs flex items-center justify-center border border-amber-700/40 mb-1">3</div>
+          <p class="font-bold text-xs text-white truncate max-w-full">${top3 ? escapeHtml(top3.candidatePseudo) : '-'}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">${top3 ? `${top3.count} vote${top3.count > 1 ? 's' : ''} (${top3.percentage}%)` : '-'}</p>
+        </div>
+      </div>
+    `;
+
+    // Liste des barres de progression
+    const progressBarsHtml = sortedCandidates.map((c, index) => {
+      const isLeader = index === 0;
+      return `
+        <div class="space-y-1.5 p-2 rounded-xl hover:bg-slate-800/40 transition">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full ${isLeader ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black' : 'bg-slate-800 text-slate-400 font-bold'} text-[10px] flex items-center justify-center">
+                ${index + 1}
+              </span>
+              <span class="font-bold ${isLeader ? 'text-amber-200' : 'text-white'}">${escapeHtml(c.candidatePseudo)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="font-black ${isLeader ? 'text-amber-400' : 'text-indigo-300'}">${c.count} vote${c.count > 1 ? 's' : ''}</span>
+              <span class="text-slate-500 font-semibold">(${c.percentage}%)</span>
+            </div>
+          </div>
+          <div class="vote-progress-bar">
+            <div class="vote-progress-fill ${isLeader ? 'vote-progress-fill-leader' : ''}" style="width: ${c.percentage}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    resultsAreaHtml = `
+      <div class="glass-card rounded-2xl p-4 md:p-5 space-y-4 border border-slate-800">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <h4 class="font-black text-white text-base flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-400"></i>
+            <span>Résultats en Direct</span>
+          </h4>
+          <span class="text-xs font-bold text-slate-400">${totalVotes} vote${totalVotes > 1 ? 's' : ''} exprimé${totalVotes > 1 ? 's' : ''}</span>
+        </div>
+
+        ${podiumsHtml}
+
+        <div class="space-y-1 divide-y divide-slate-800/60 max-h-[260px] overflow-y-auto pr-1">
+          ${progressBarsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // Assemblage complet
+  container.innerHTML = `
+    <!-- En-tête du sondage -->
+    <div class="glass-card rounded-2xl p-5 space-y-3 border border-slate-800">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+        <div class="flex flex-wrap items-center gap-2">
+          ${catBadges[poll.category] || catBadges.autre}
+          ${statusBadge}
+          <span class="text-xs text-slate-400 font-semibold flex items-center gap-1">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span>${totalVotes} vote${totalVotes > 1 ? 's' : ''}</span>
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-500 font-medium">
+          Créé le ${new Date(poll.created_at).toLocaleDateString('fr-FR')}
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-xl md:text-2xl font-black font-heading text-white">${escapeHtml(poll.title)}</h3>
+        ${poll.description ? `<p class="text-xs md:text-sm text-slate-300 mt-1">${escapeHtml(poll.description)}</p>` : ''}
+      </div>
+
+      ${adminPollToolbar}
+    </div>
+
+    <!-- Double colonne : Espace de Vote + Résultats en direct -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div>${voteAreaHtml}</div>
+      <div>${resultsAreaHtml}</div>
+    </div>
+  `;
+
+  initLucide();
+  attachPollEventListeners(poll);
+}
+
+/**
+ * Attache les écouteurs sur le sondage affiché
+ */
+function attachPollEventListeners(poll) {
+  // Clic sur bouton "Sélectionner mon pseudo"
+  document.getElementById('btn-prompt-connect-to-vote')?.addEventListener('click', openPlayerModal);
+
+  // Clic sur "Changer mon vote"
+  document.getElementById('btn-allow-change-vote')?.addEventListener('click', () => {
+    state.isChangingVote = true;
+    renderCurrentPollDetail();
+  });
+
+  // Clic sur "Annuler" lors du changement de vote
+  document.getElementById('btn-cancel-changing-vote')?.addEventListener('click', () => {
+    state.isChangingVote = false;
+    renderCurrentPollDetail();
+  });
+
+  // Clic sur "Annuler mon vote"
+  document.getElementById('btn-cancel-my-vote')?.addEventListener('click', async () => {
+    if (confirm("Confirmez-vous l'annulation de votre vote pour ce sondage ?")) {
+      await executeCancelVote();
+    }
+  });
+
+  // Recherche de candidat
+  const searchInput = document.getElementById('candidate-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      state.candidateSearchQuery = e.target.value.trim().toLowerCase();
+      renderCurrentPollDetail();
+      const updatedInput = document.getElementById('candidate-search-input');
+      if (updatedInput) {
+        updatedInput.focus();
+        updatedInput.setSelectionRange(updatedInput.value.length, updatedInput.value.length);
+      }
+    });
+  }
+
+  // Clic sur un bouton de vote de candidat
+  document.querySelectorAll('.btn-vote-candidate').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const candidateId = btn.dataset.candidateId;
+      const candidatePseudo = btn.dataset.candidatePseudo;
+      openVoteConfirmModal(candidateId, candidatePseudo);
+    });
+  });
+
+  // Clic sur la carte d'un candidat
+  document.querySelectorAll('.candidate-card').forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.dataset.forbidden === 'true') {
+        showToast("Le vote pour soi-même n'est pas autorisé dans ce sondage", "warning");
+        return;
+      }
+      const candidateId = card.dataset.candidateId;
+      const candidatePseudo = card.dataset.candidatePseudo;
+      openVoteConfirmModal(candidateId, candidatePseudo);
+    });
+  });
+
+  // Actions Admin pour ce sondage
+  if (state.isAdmin) {
+    document.querySelector('.btn-toggle-poll-active')?.addEventListener('click', () => {
+      handleTogglePollActive(poll.id);
+    });
+
+    document.querySelector('.btn-view-poll-voters')?.addEventListener('click', () => {
+      openPollVotersModal(poll.id);
+    });
+
+    document.querySelector('.btn-reset-poll-votes')?.addEventListener('click', () => {
+      handleResetPollVotes(poll.id);
+    });
+
+    document.querySelector('.btn-delete-poll')?.addEventListener('click', () => {
+      handleDeletePoll(poll.id);
+    });
+  }
+}
+
+function openVoteConfirmModal(candidateId, candidatePseudo) {
+  if (!state.connectedPseudo) {
+    openPlayerModal();
+    return;
+  }
+
+  const poll = state.polls.find(p => p.id === state.currentPollId);
+  if (!poll || !poll.is_active) {
+    showToast("Ce sondage est clôturé", "warning");
+    return;
+  }
+
+  if (!poll.allow_self_vote && candidatePseudo.trim().toLowerCase() === state.connectedPseudo.trim().toLowerCase()) {
+    showToast("Le vote pour soi-même n'est pas autorisé dans ce sondage", "warning");
+    return;
+  }
+
+  state.selectedCandidate = { id: candidateId, pseudo: candidatePseudo };
+
+  const modal = document.getElementById('vote-confirm-modal');
+  const nameSpan = document.getElementById('vote-confirm-candidate-name');
+  if (nameSpan) nameSpan.textContent = candidatePseudo;
+  modal?.classList.remove('hidden');
+}
+
+async function executeVoteConfirm() {
+  if (!state.selectedCandidate || !state.currentPollId || !state.connectedPseudo) return;
+
+  const modal = document.getElementById('vote-confirm-modal');
+  const confirmBtn = document.getElementById('btn-execute-vote-confirm');
+  const originalHtml = confirmBtn.innerHTML;
+
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Envoi...`;
+  initLucide();
+
+  try {
+    await castVote(
+      state.currentPollId,
+      state.connectedPseudo,
+      state.selectedCandidate.id,
+      state.selectedCandidate.pseudo
+    );
+
+    triggerConfetti();
+    showToast(`Votre vote pour ${state.selectedCandidate.pseudo} a bien été enregistré !`, "success");
+    modal?.classList.add('hidden');
+    state.selectedCandidate = null;
+    state.isChangingVote = false;
+
+    // Recharger les votes du sondage
+    await loadVotesForCurrentPoll();
+  } catch (err) {
+    console.error("Erreur vote:", err);
+    showToast(`Erreur lors du vote : ${err.message || 'Problème de connexion'}`, "error");
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = originalHtml;
+    initLucide();
+  }
+}
+
+async function executeCancelVote() {
+  if (!state.currentPollId || !state.connectedPseudo) return;
+
+  try {
+    await cancelVote(state.currentPollId, state.connectedPseudo);
+    showToast("Votre vote a été annulé", "info");
+    state.isChangingVote = false;
+    await loadVotesForCurrentPoll();
+  } catch (err) {
+    console.error("Erreur annulation vote:", err);
+    showToast("Impossible d'annuler votre vote", "error");
+  }
+}
+
+async function toggleGlobalVotes(enabled) {
+  if (!state.isAdmin) return;
+  try {
+    await updateVotesSettings({ enabled });
+    state.votesEnabled = enabled;
+    updatePollsNavVisibility();
+    showToast(enabled ? "Module Sondages & Votes activé pour les membres !" : "Module Sondages & Votes désactivé", "success");
+    await loadPollsData();
+  } catch (err) {
+    console.error("Erreur modification paramètres votes:", err);
+    showToast(`Erreur : ${err.message || 'Impossible de mettre à jour'}`, "error");
+  }
+}
+
+async function handleCreatePollSubmit() {
+  if (!state.isAdmin) return;
+  const title = document.getElementById('poll-form-title')?.value.trim();
+  const desc = document.getElementById('poll-form-desc')?.value.trim();
+  const cat = document.getElementById('poll-form-cat')?.value || 'chef';
+  const isActive = document.getElementById('poll-form-active')?.value === 'true';
+  const allowSelf = document.getElementById('poll-form-allow-self')?.checked || false;
+
+  if (!title) {
+    showToast("Le titre du sondage est requis", "warning");
+    return;
+  }
+
+  const submitBtn = document.getElementById('btn-submit-poll-create');
+  const originalHtml = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Création...`;
+  initLucide();
+
+  try {
+    const newPoll = await createPoll({
+      title,
+      description: desc,
+      category: cat,
+      is_active: isActive,
+      allow_self_vote: allowSelf
+    });
+
+    showToast(`Sondage "${title}" créé avec succès !`, "success");
+    document.getElementById('poll-create-modal')?.classList.add('hidden');
+    state.currentPollId = newPoll.id;
+    await loadPollsData();
+    switchTab('sondages');
+  } catch (err) {
+    console.error("Erreur création sondage:", err);
+    showToast(`Erreur création sondage : ${err.message || 'Problème réseau'}`, "error");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalHtml;
+    initLucide();
+  }
+}
+
+async function handleTogglePollActive(pollId) {
+  if (!state.isAdmin) return;
+  const poll = state.polls.find(p => p.id === pollId);
+  if (!poll) return;
+
+  try {
+    const updated = await updatePoll(pollId, { is_active: !poll.is_active });
+    showToast(updated.is_active ? "Sondage rouvert aux votes !" : "Sondage clôturé !", "info");
+    await loadPollsData();
+  } catch (err) {
+    console.error("Erreur changement statut sondage:", err);
+    showToast("Impossible de modifier le statut", "error");
+  }
+}
+
+async function handleDeletePoll(pollId) {
+  if (!state.isAdmin) return;
+  const poll = state.polls.find(p => p.id === pollId);
+  if (!poll) return;
+
+  if (!confirm(`Supprimer définitivement le sondage "${poll.title}" et tous ses votes associés ?`)) {
+    return;
+  }
+
+  try {
+    await deletePoll(pollId);
+    showToast(`Sondage "${poll.title}" supprimé`, "success");
+    state.currentPollId = null;
+    await loadPollsData();
+  } catch (err) {
+    console.error("Erreur suppression sondage:", err);
+    showToast("Impossible de supprimer le sondage", "error");
+  }
+}
+
+async function handleResetPollVotes(pollId) {
+  if (!state.isAdmin) return;
+  const poll = state.polls.find(p => p.id === pollId);
+  if (!poll) return;
+
+  if (!confirm(`Réinitialiser tous les votes du sondage "${poll.title}" à 0 ?`)) {
+    return;
+  }
+
+  try {
+    await resetPollVotes(pollId);
+    showToast("Tous les votes de ce sondage ont été réinitialisés à 0", "success");
+    await loadVotesForCurrentPoll();
+  } catch (err) {
+    console.error("Erreur réinitialisation votes:", err);
+    showToast("Impossible de réinitialiser les votes", "error");
+  }
+}
+
+function openPollVotersModal(pollId) {
+  if (!state.isAdmin) return;
+  const poll = state.polls.find(p => p.id === pollId);
+  if (!poll) return;
+
+  const modal = document.getElementById('poll-voters-modal');
+  const subtitle = document.getElementById('poll-voters-modal-subtitle');
+  const container = document.getElementById('poll-voters-list-container');
+  const countBadge = document.getElementById('poll-voters-count-badge');
+
+  if (subtitle) subtitle.textContent = `Sondage : "${poll.title}"`;
+  if (countBadge) countBadge.textContent = `Total : ${state.pollVotes.length} vote${state.pollVotes.length > 1 ? 's' : ''}`;
+
+  if (container) {
+    if (state.pollVotes.length === 0) {
+      container.innerHTML = `<div class="p-6 text-center text-slate-500 text-xs">Aucun vote enregistré pour le moment.</div>`;
+    } else {
+      container.innerHTML = state.pollVotes.map((v, i) => {
+        const dateStr = v.created_at ? new Date(v.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+        return `
+          <div class="py-2.5 px-3 flex items-center justify-between gap-3 hover:bg-slate-800/40 rounded-xl transition">
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-[10px] shrink-0">${i + 1}</span>
+              <div>
+                <span class="font-bold text-white text-xs block">${escapeHtml(v.voter_pseudo)}</span>
+                <span class="text-[10px] text-slate-500">${dateStr}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">A voté pour :</span>
+              <span class="font-black text-xs text-indigo-300">${escapeHtml(v.candidate_pseudo)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  modal?.classList.remove('hidden');
+  initLucide();
+}
+
