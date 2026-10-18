@@ -23,7 +23,7 @@ import {
   deleteCandidateVote,
   cancelVote,
   resetPollVotes
-} from './supabaseClient.js?v=20261018_4';
+} from './supabaseClient.js?v=20261018_5';
 
 import {
   simulateRealProgression,
@@ -32,9 +32,9 @@ import {
   getGeneralRealRanking,
   getGeneralRawRanking,
   getOrdreAscensionWithElus
-} from './rankingEngine.js?v=20261018_4';
+} from './rankingEngine.js?v=20261018_5';
 
-import { initDiscordActivity } from './discordActivity.js?v=20261018_4';
+import { initDiscordActivity } from './discordActivity.js?v=20261018_5';
 
 // =============================================================================
 // ÉTAT DE L'APPLICATION
@@ -221,9 +221,7 @@ async function loadData(showToastFeedback = false) {
 
     // Charger la configuration des votes et les sondages
     await loadVotesConfig();
-    if (state.votesEnabled || state.isAdmin) {
-      await loadPollsData();
-    }
+    await loadPollsData();
 
     if (showToastFeedback) {
       showToast("Données actualisées avec succès", "success");
@@ -253,29 +251,53 @@ function initFormControls() {
     });
   });
 
+  // Écouteur sur le pseudo (Étape 0)
+  const pseudoInput = document.getElementById('input-pseudo');
+  if (pseudoInput) {
+    if (state.connectedPseudo && !pseudoInput.value) {
+      pseudoInput.value = state.connectedPseudo;
+    }
+
+    // Synchronisation en temps réel dès que la personne renseigne son nom sur la 1ère page
+    pseudoInput.addEventListener('input', () => {
+      const val = pseudoInput.value.trim();
+      if (val.length >= 2) {
+        state.connectedPseudo = val;
+        try {
+          localStorage.setItem('fas_connected_pseudo', val);
+        } catch (e) {}
+        updatePlayerBadge();
+        updatePollsNavVisibility();
+      } else if (val.length === 0) {
+        clearConnectedPlayer();
+      }
+    });
+
+    // Validation à la touche Entrée sur le pseudo
+    pseudoInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (!validatePseudo(true)) return;
+        await checkExistingPseudo();
+        goToStep(1);
+      }
+    });
+
+    // Détection automatique du pseudo dès la sortie du champ (blur)
+    pseudoInput.addEventListener('blur', async () => {
+      if (pseudoInput.value.trim().length >= 2) {
+        await checkExistingPseudo();
+      } else if (pseudoInput.value.trim().length === 0) {
+        clearConnectedPlayer();
+      }
+    });
+  }
+
   // Bouton "Suivant" Étape 0 (Pseudo)
-  document.getElementById('btn-next-step-0').addEventListener('click', async () => {
+  document.getElementById('btn-next-step-0')?.addEventListener('click', async () => {
     if (!validatePseudo(true)) return;
     await checkExistingPseudo();
     goToStep(1);
-  });
-
-  // Validation à la touche Entrée sur le pseudo
-  const pseudoInput = document.getElementById('input-pseudo');
-  pseudoInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (!validatePseudo(true)) return;
-      await checkExistingPseudo();
-      goToStep(1);
-    }
-  });
-
-  // Détection automatique du pseudo dès la sortie du champ (blur)
-  pseudoInput.addEventListener('blur', async () => {
-    if (pseudoInput.value.trim().length >= 2) {
-      await checkExistingPseudo();
-    }
   });
 
   // Boutons Suivant / Précédent génériques
@@ -497,11 +519,14 @@ function validatePseudo(showAlert = true) {
  * Vérifie si le pseudo est déjà dans la base Supabase et pré-remplit les valeurs
  */
 async function checkExistingPseudo() {
-  const pseudo = document.getElementById('input-pseudo').value.trim();
+  const pseudo = document.getElementById('input-pseudo')?.value.trim();
   const statusMsg = document.getElementById('pseudo-status-msg');
   const spinner = document.getElementById('pseudo-check-spinner');
 
-  if (!pseudo) return;
+  if (!pseudo) {
+    clearConnectedPlayer();
+    return;
+  }
 
   if (spinner) spinner.classList.remove('hidden');
 
@@ -513,16 +538,15 @@ async function checkExistingPseudo() {
 
       if (statusMsg) {
         statusMsg.className = 'p-3 rounded-xl text-xs flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300';
-        statusMsg.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i> <span>Joueur <strong>${escapeHtml(existingPlayer.pseudo)}</strong> trouvé ! Vos données existantes ont été chargées pour mise à jour.</span>`;
+        statusMsg.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i> <span>Joueur <strong>${escapeHtml(existingPlayer.pseudo)}</strong> trouvé ! Données pré-chargées.</span>`;
         statusMsg.classList.remove('hidden');
         initLucide();
       }
-      if (!state.connectedPseudo) {
-        setConnectedPlayer(existingPlayer.pseudo);
-      }
-      showToast(`Données de ${existingPlayer.pseudo} pré-chargées`, "info");
+      setConnectedPlayer(existingPlayer.pseudo);
+      showToast(`Connecté en tant que ${existingPlayer.pseudo}`, "info");
     } else {
       state.editingPlayerId = null;
+      setConnectedPlayer(pseudo);
       if (statusMsg) {
         statusMsg.className = 'p-3 rounded-xl text-xs flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300';
         statusMsg.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 shrink-0"></i> <span>Nouveau joueur ! Vos données seront créées à la fin.</span>`;
@@ -532,6 +556,7 @@ async function checkExistingPseudo() {
     }
   } catch (err) {
     console.warn("Vérification pseudo:", err);
+    setConnectedPlayer(pseudo);
   } finally {
     if (spinner) spinner.classList.add('hidden');
   }
@@ -1967,61 +1992,30 @@ function escapeHtml(str) {
 function initPlayerIdentity() {
   updatePlayerBadge();
 
-  // Bouton profil dans le header
+  // Bouton profil dans le header : renvoie directement à la première page (Étape 0) pour renseigner/modifier son nom
   document.getElementById('header-player-btn')?.addEventListener('click', () => {
-    openPlayerModal();
-  });
-
-  // Bouton profil dans la bannière de l'onglet sondages
-  document.getElementById('btn-change-voter-pseudo')?.addEventListener('click', () => {
-    openPlayerModal();
-  });
-
-  // Modale d'identification
-  const modal = document.getElementById('player-login-modal');
-  document.getElementById('btn-close-player-modal')?.addEventListener('click', () => {
-    modal?.classList.add('hidden');
-  });
-
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.add('hidden');
-  });
-
-  // Confirmation de l'identification
-  document.getElementById('btn-confirm-player-login')?.addEventListener('click', () => {
-    const dropdown = document.getElementById('player-select-dropdown');
-    const customInput = document.getElementById('player-custom-input');
-    let chosen = (dropdown?.value || customInput?.value || '').trim();
-
-    if (!chosen) {
-      showToast("Veuillez sélectionner ou saisir votre pseudo", "warning");
-      return;
-    }
-
-    const matched = state.players.find(p => p.pseudo.toLowerCase() === chosen.toLowerCase());
-    if (!matched) {
-      showToast(`Le joueur "${chosen}" n'est pas encore inscrit. Inscrivez-vous d'abord !`, "warning");
-      return;
-    }
-
-    setConnectedPlayer(matched.pseudo);
-    modal?.classList.add('hidden');
-  });
-
-  // Déconnexion d'identité
-  document.getElementById('btn-clear-player-login')?.addEventListener('click', () => {
-    clearConnectedPlayer();
-    modal?.classList.add('hidden');
+    switchTab('inscription');
+    goToStep(0);
+    document.getElementById('input-pseudo')?.focus();
   });
 }
 
 function setConnectedPlayer(pseudo) {
-  if (!pseudo) return;
-  state.connectedPseudo = pseudo;
+  if (!pseudo || !pseudo.trim()) return;
+  const clean = pseudo.trim();
+  state.connectedPseudo = clean;
   try {
-    localStorage.setItem('fas_connected_pseudo', pseudo);
+    localStorage.setItem('fas_connected_pseudo', clean);
   } catch (e) {}
+
+  // Synchroniser le champ de l'Étape 0 si nécessaire
+  const pseudoInput = document.getElementById('input-pseudo');
+  if (pseudoInput && pseudoInput.value.trim() !== clean) {
+    pseudoInput.value = clean;
+  }
+
   updatePlayerBadge();
+  updatePollsNavVisibility();
   if (state.currentTab === 'sondages') {
     renderCurrentPollDetail();
   }
@@ -2033,16 +2027,15 @@ function clearConnectedPlayer() {
     localStorage.removeItem('fas_connected_pseudo');
   } catch (e) {}
   updatePlayerBadge();
+  updatePollsNavVisibility();
   if (state.currentTab === 'sondages') {
-    renderCurrentPollDetail();
+    switchTab('resultat');
   }
-  showToast("Vous êtes déconnecté de votre profil joueur", "info");
 }
 
 function updatePlayerBadge() {
   const badgeText = document.getElementById('header-player-pseudo');
   const voterDisplay = document.getElementById('voter-connected-pseudo');
-  const voterBtnText = document.getElementById('btn-change-voter-pseudo-text');
   const voterHint = document.getElementById('voter-identity-hint');
   const voterAvatar = document.getElementById('voter-avatar-icon');
 
@@ -2052,19 +2045,17 @@ function updatePlayerBadge() {
       voterDisplay.textContent = state.connectedPseudo;
       voterDisplay.className = 'font-black text-emerald-400 text-sm';
     }
-    if (voterBtnText) voterBtnText.textContent = "Changer";
-    if (voterHint) voterHint.textContent = "Vos votes seront enregistrés et comptabilisés sous votre nom.";
+    if (voterHint) voterHint.textContent = "Identité définie sur la première page (Étape 0 : Identité du Joueur). Vos votes sont comptabilisés sous ce pseudo.";
     if (voterAvatar) {
       voterAvatar.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0';
     }
   } else {
     if (badgeText) badgeText.textContent = "Non identifié";
     if (voterDisplay) {
-      voterDisplay.textContent = "Non connecté";
+      voterDisplay.textContent = "Non identifié";
       voterDisplay.className = 'font-bold text-slate-400 text-sm';
     }
-    if (voterBtnText) voterBtnText.textContent = "S'identifier";
-    if (voterHint) voterHint.textContent = "Vous devez être identifié avec votre pseudo de joueur inscrit pour pouvoir voter.";
+    if (voterHint) voterHint.textContent = "Renseignez votre nom sur la première page pour pouvoir voter.";
     if (voterAvatar) {
       voterAvatar.className = 'w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0';
     }
@@ -2072,29 +2063,9 @@ function updatePlayerBadge() {
 }
 
 function openPlayerModal() {
-  const modal = document.getElementById('player-login-modal');
-  const dropdown = document.getElementById('player-select-dropdown');
-  const customInput = document.getElementById('player-custom-input');
-  if (!modal) return;
-
-  if (dropdown) {
-    dropdown.innerHTML = '<option value="">-- Choisir mon pseudo dans la liste --</option>';
-    const sorted = [...state.players].sort((a, b) => a.pseudo.localeCompare(b.pseudo, 'fr', { sensitivity: 'base' }));
-    sorted.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.pseudo;
-      opt.textContent = p.pseudo;
-      if (state.connectedPseudo && state.connectedPseudo.toLowerCase() === p.pseudo.toLowerCase()) {
-        opt.selected = true;
-      }
-      dropdown.appendChild(opt);
-    });
-  }
-
-  if (customInput) customInput.value = state.connectedPseudo || '';
-
-  modal.classList.remove('hidden');
-  initLucide();
+  switchTab('inscription');
+  goToStep(0);
+  document.getElementById('input-pseudo')?.focus();
 }
 
 /**
@@ -2144,7 +2115,17 @@ function initPollsEvents() {
 
   document.getElementById('btn-admin-modal-goto-polls')?.addEventListener('click', () => {
     document.getElementById('admin-modal')?.classList.add('hidden');
-    switchTab('sondages');
+    if (!state.polls || state.polls.length === 0) {
+      showToast("Aucun sondage créé pour le moment. Créez-en un !", "info");
+      openCreatePollModal();
+    } else if (!state.connectedPseudo) {
+      showToast("Veuillez d'abord renseigner votre pseudo sur la première page (Étape 0)", "warning");
+      switchTab('inscription');
+      goToStep(0);
+      document.getElementById('input-pseudo')?.focus();
+    } else {
+      switchTab('sondages');
+    }
   });
 
   // Modèles rapides dans la modale de création
@@ -2202,7 +2183,16 @@ function updatePollsNavVisibility() {
   const toggleInput = document.getElementById('admin-polls-enable-toggle');
   const adminToolbar = document.getElementById('admin-polls-toolbar');
 
-  const shouldShowTab = state.votesEnabled || state.isAdmin;
+  const pseudoInput = document.getElementById('input-pseudo');
+  const inputVal = pseudoInput ? pseudoInput.value.trim() : '';
+  const hasName = Boolean((state.connectedPseudo && state.connectedPseudo.trim().length > 0) || inputVal.length >= 2);
+
+  const hasPolls = Array.isArray(state.polls) && state.polls.length > 0;
+  // L'onglet ne doit être visible que si :
+  // 1. Il y a des sondages
+  // 2. Le module est actif (ou admin)
+  // 3. La personne a renseigné son nom sur la 1ère page (Étape 0)
+  const shouldShowTab = hasPolls && (state.votesEnabled || state.isAdmin) && hasName;
 
   if (tabBtn) {
     if (shouldShowTab) {
@@ -2218,6 +2208,11 @@ function updatePollsNavVisibility() {
     } else {
       navBar.className = 'grid grid-cols-2 p-1 bg-slate-900/90 rounded-2xl border border-slate-800 transition-all duration-200';
     }
+  }
+
+  // Redirection automatique si l'onglet est masqué et que l'utilisateur est actuellement dessus
+  if (!shouldShowTab && state.currentTab === 'sondages') {
+    switchTab('resultat');
   }
 
   if (toggleInput) {
@@ -2276,6 +2271,9 @@ async function loadPollsData() {
     if (!state.currentPollId || !state.polls.find(p => p.id === state.currentPollId)) {
       state.currentPollId = state.polls[0]?.id || null;
     }
+
+    // Actualiser l'affichage de l'onglet Sondages dans la barre de navigation
+    updatePollsNavVisibility();
 
     renderPollTabs();
     await loadVotesForCurrentPoll();
@@ -2501,21 +2499,21 @@ function renderCurrentPollDetail() {
       </div>
     `;
   } else if (!state.connectedPseudo) {
-    // Non connecté
+    // Non connecté (redirection vers page 1)
     voteAreaHtml = `
       <div class="glass-card rounded-2xl p-6 text-center space-y-4 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/20 to-slate-900/90">
         <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/10">
-          <i data-lucide="user-plus" class="w-6 h-6"></i>
+          <i data-lucide="user-x" class="w-6 h-6"></i>
         </div>
         <div class="space-y-1">
-          <h4 class="font-bold text-white text-base">Identifiez-vous pour voter</h4>
+          <h4 class="font-bold text-white text-base">Identité non renseignée</h4>
           <p class="text-xs text-slate-400 max-w-xs mx-auto">
-            Sélectionnez votre pseudo inscrit dans l'application afin de pouvoir voter (jusqu'à ${maxVotes} personnes distinctes, en Dirigeant ou R5).
+            Veuillez renseigner votre pseudo sur la première page (Étape 0 : Identité du Joueur) pour pouvoir participer au vote.
           </p>
         </div>
-        <button type="button" id="btn-prompt-connect-to-vote" class="px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 text-xs transition active:scale-95 flex items-center justify-center gap-2 mx-auto">
-          <i data-lucide="user-check" class="w-4 h-4"></i>
-          <span>Sélectionner mon pseudo</span>
+        <button type="button" id="btn-goto-step0-from-polls" class="px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 text-xs transition active:scale-95 flex items-center justify-center gap-2 mx-auto">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Renseigner mon nom (page 1)</span>
         </button>
       </div>
     `;
@@ -2678,6 +2676,7 @@ function renderCurrentPollDetail() {
         </p>
       </div>
     `;
+  } else {
     // 1. Détermination des 2 Dirigeants sélectionnés :
     // Tri : votes Dirigeant DESC, puis départage par Classement Réel FAS ASC
     const candidatesForDirigeant = Object.values(candidateStats)
@@ -2923,8 +2922,12 @@ function renderCurrentPollDetail() {
  * Attache les écouteurs sur le sondage affiché
  */
 function attachPollEventListeners(poll) {
-  // Clic sur bouton "Sélectionner mon pseudo"
-  document.getElementById('btn-prompt-connect-to-vote')?.addEventListener('click', openPlayerModal);
+  // Clic sur redirection vers la page 1 si pseudo non renseigné
+  document.getElementById('btn-goto-step0-from-polls')?.addEventListener('click', () => {
+    switchTab('inscription');
+    goToStep(0);
+    document.getElementById('input-pseudo')?.focus();
+  });
 
   // Clic sur "Tout annuler" mes votes
   document.getElementById('btn-cancel-my-all-votes')?.addEventListener('click', async () => {
@@ -3006,8 +3009,10 @@ function attachPollEventListeners(poll) {
  */
 async function executeDirectVote(candidateId, candidatePseudo, role) {
   if (!state.connectedPseudo) {
-    openPlayerModal();
-    showToast("Veuillez d'abord sélectionner votre pseudo pour voter", "warning");
+    showToast("Veuillez d'abord renseigner votre pseudo sur la première page", "warning");
+    switchTab('inscription');
+    goToStep(0);
+    document.getElementById('input-pseudo')?.focus();
     return;
   }
 

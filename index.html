@@ -180,7 +180,7 @@
             </div>
             <h2 class="text-2xl font-black font-heading text-white">Identité du Joueur</h2>
             <p class="text-sm text-slate-400 max-w-sm mx-auto">
-              Renseignez votre pseudo en jeu. Si vous êtes déjà inscrit, vos données précédentes seront chargées automatiquement !
+              Renseignez votre pseudo en jeu. Si vous êtes déjà inscrit, vos données précédentes seront chargées automatiquement. Ce pseudo vous permettra également d'accéder aux sondages et votes !
             </p>
           </div>
 
@@ -1012,26 +1012,25 @@
       <!-- Contenu principal des sondages (visible quand activé OU par admin) -->
       <div id="polls-active-container" class="space-y-5">
         
-        <!-- 1. Bannière d'identification du Joueur Votant -->
-        <div id="voter-identity-card" class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-800">
+        <!-- 1. Bannière d'identification du Joueur Votant (connecté obligatoirement via la page 1) -->
+        <div id="voter-identity-card" class="glass-card rounded-2xl p-3.5 md:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-800 bg-slate-900/60">
           <div class="flex items-center gap-3">
-            <div id="voter-avatar-icon" class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shrink-0">
+            <div id="voter-avatar-icon" class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
               <i data-lucide="user-check" class="w-5 h-5"></i>
             </div>
             <div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-slate-400">Votre identité de vote :</span>
-                <span id="voter-connected-pseudo" class="font-black text-white text-sm text-indigo-300">Non connecté</span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs text-slate-400">Votant connecté :</span>
+                <span id="voter-connected-pseudo" class="font-black text-emerald-400 text-sm">Non identifié</span>
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                  <i data-lucide="shield-check" class="w-3 h-3"></i> Identité vérifiée
+                </span>
               </div>
               <p id="voter-identity-hint" class="text-[11px] text-slate-400 mt-0.5">
-                Vous devez être connecté sous votre nom de joueur inscrit pour pouvoir voter.
+                Identité définie sur la première page (Étape 0 : Identité du Joueur). Vos votes sont comptabilisés sous ce pseudo.
               </p>
             </div>
           </div>
-          <button type="button" id="btn-change-voter-pseudo" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 shrink-0">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-            <span id="btn-change-voter-pseudo-text">S'identifier</span>
-          </button>
         </div>
 
         <!-- 2. Barre d'administration rapide (Bouton Nouveau Sondage & Actions) -->
@@ -1495,6 +1494,6 @@
   </footer>
 
   <!-- Scripts applicatifs en module ES6 (cache-buster anti-cache Discord) -->
-  <script type="module" src="./app.js?v=20261018_4"></script>
+  <script type="module" src="./app.js?v=20261018_7"></script>
 </body>
 </html>
