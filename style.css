@@ -457,6 +457,84 @@ input[type="range"]::-moz-range-thumb {
   background: #64748b;
 }
 
+/* ========================================================================== */
+/* MODALE D'AUDIT ET CONTRÔLE DES VOTES */
+/* ========================================================================== */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+#poll-voters-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10000 !important;
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1rem !important;
+  overflow: hidden !important;
+}
+
+#poll-voters-modal.hidden {
+  display: none !important;
+}
+
+.poll-voters-modal-card {
+  width: 100% !important;
+  max-width: 900px !important;
+  height: 88vh !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: rgba(15, 23, 42, 0.96) !important;
+  border: 1px solid rgba(168, 85, 247, 0.4) !important;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(168, 85, 247, 0.15) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.poll-voters-modal-header {
+  flex-shrink: 0 !important;
+  padding: 1rem 1.25rem !important;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.8) !important;
+}
+
+.poll-voters-modal-stats {
+  flex-shrink: 0 !important;
+  padding: 0.65rem 1.25rem 0.25rem 1.25rem !important;
+}
+
+.poll-voters-modal-toolbar {
+  flex-shrink: 0 !important;
+  padding: 0.5rem 1.25rem 0.65rem 1.25rem !important;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.6) !important;
+}
+
+#poll-voters-list-container {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  padding: 0.75rem 1.25rem !important;
+}
+
+.poll-voters-modal-footer {
+  flex-shrink: 0 !important;
+  padding: 0.75rem 1.25rem !important;
+  border-top: 1px solid rgba(51, 65, 85, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+
 
 
 

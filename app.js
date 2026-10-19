@@ -2150,12 +2150,8 @@ function initPollsEvents() {
   document.getElementById('btn-submit-poll-create')?.addEventListener('click', handleCreatePollSubmit);
 
   // Modale détail des votants
-  document.getElementById('btn-close-poll-voters-modal')?.addEventListener('click', () => {
-    document.getElementById('poll-voters-modal')?.classList.add('hidden');
-  });
-  document.getElementById('btn-close-poll-voters-bottom')?.addEventListener('click', () => {
-    document.getElementById('poll-voters-modal')?.classList.add('hidden');
-  });
+  document.getElementById('btn-close-poll-voters-modal')?.addEventListener('click', closePollVotersModal);
+  document.getElementById('btn-close-poll-voters-bottom')?.addEventListener('click', closePollVotersModal);
 }
 
 /**
@@ -3324,21 +3320,30 @@ function initPollVotersModalEvents() {
   btnExport?.addEventListener('click', exportPollVotesAudit);
 
   // Fermeture modale
-  const closeModal = () => modal?.classList.add('hidden');
-  btnCloseTop?.addEventListener('click', closeModal);
-  btnCloseBottom?.addEventListener('click', closeModal);
+  btnCloseTop?.addEventListener('click', closePollVotersModal);
+  btnCloseBottom?.addEventListener('click', closePollVotersModal);
 
   // Fermeture au clic sur le fond sombre
   modal?.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
+    if (e.target === modal) closePollVotersModal();
   });
 
   // Fermeture touche Echap
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-      closeModal();
+      closePollVotersModal();
     }
   });
+}
+
+/**
+ * Ferme la modale d'audit des votes et débloque le défilement de l'écran principal
+ */
+function closePollVotersModal() {
+  const modal = document.getElementById('poll-voters-modal');
+  modal?.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+  document.body.style.overflow = '';
 }
 
 /**
@@ -3368,6 +3373,11 @@ async function openPollVotersModal(pollId) {
 
   renderPollVotersModalContent();
   modal?.classList.remove('hidden');
+
+  // Bloque le défilement de l'écran derrière
+  document.body.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
+
   initLucide();
 }
 

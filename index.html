@@ -26,7 +26,7 @@
   <script src="./confetti.browser.min.js"></script>
 
   <!-- Style CSS personnalisé -->
-  <link rel="stylesheet" href="./style.css?v=20261019_1">
+  <link rel="stylesheet" href="./style.css?v=20261019_2">
 </head>
 <body class="bg-ambient min-h-screen flex flex-col text-slate-100 selection:bg-brand-500 selection:text-white">
 
@@ -1456,11 +1456,11 @@
   <!-- ================================================================= -->
   <!-- MODALE DÉTAIL DES VOTES (ADMIN) -->
   <!-- ================================================================= -->
-  <div id="poll-voters-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-    <div class="glass-card bg-slate-900/95 border border-purple-500/40 rounded-3xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl h-[92vh] max-h-[92vh] flex flex-col min-h-0 overflow-hidden">
+  <div id="poll-voters-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5 overflow-hidden">
+    <div class="poll-voters-modal-card glass-card bg-slate-900/95 border border-purple-500/40 rounded-3xl max-w-4xl w-full shadow-2xl flex flex-col overflow-hidden" style="height: 88vh; max-height: 88vh;">
       
       <!-- En-tête de la modale -->
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+      <div class="poll-voters-modal-header flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center shadow-lg shadow-purple-500/10">
             <i data-lucide="shield-check" class="w-5 h-5"></i>
@@ -1485,12 +1485,12 @@
       </div>
 
       <!-- Résumé statistique rapide (Badges) -->
-      <div id="poll-voters-stats-bar" class="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 py-1">
+      <div id="poll-voters-stats-bar" class="poll-voters-modal-stats grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 py-1">
         <!-- Rempli par app.js -->
       </div>
 
       <!-- Barre d'outils : Recherche, Filtres, Mode d'affichage -->
-      <div class="space-y-2.5 pb-2 border-b border-slate-800/80 shrink-0">
+      <div class="poll-voters-modal-toolbar space-y-2.5 pb-2 border-b border-slate-800/80 shrink-0">
         <!-- Ligne recherche + bascule vue -->
         <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
           <!-- Recherche -->
@@ -1535,12 +1535,12 @@
       </div>
 
       <!-- Liste défilante scrollable avec min-h-0 -->
-      <div class="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/80 pr-1.5 text-xs custom-scrollbar space-y-1" id="poll-voters-list-container">
+      <div class="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-800/80 text-xs custom-scrollbar space-y-1" id="poll-voters-list-container" style="flex: 1 1 0%; min-height: 0; overflow-y: auto; overscroll-behavior: contain;">
         <!-- Rempli par app.js -->
       </div>
 
       <!-- Pied de la modale -->
-      <div class="pt-3 border-t border-slate-800 flex items-center justify-between shrink-0">
+      <div class="poll-voters-modal-footer pt-3 border-t border-slate-800 flex items-center justify-between shrink-0">
         <span id="poll-voters-count-badge" class="text-xs font-bold text-slate-400">Total : 0 vote</span>
         <button type="button" id="btn-close-poll-voters-bottom" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
           Fermer
@@ -1557,6 +1557,6 @@
   </footer>
 
   <!-- Scripts applicatifs en module ES6 (cache-buster anti-cache Discord) -->
-  <script type="module" src="./app.js?v=20261019_1"></script>
+  <script type="module" src="./app.js?v=20261019_2"></script>
 </body>
 </html>
