@@ -435,5 +435,28 @@ input[type="range"]::-moz-range-thumb {
   background: linear-gradient(90deg, #38bdf8, #0ea5e9, #0284c7);
 }
 
+/* Custom scrollbar pour les conteneurs défilants */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 rgba(15, 23, 42, 0.7);
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 9999px;
+  border: 2px solid rgba(15, 23, 42, 0.7);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+
 
 

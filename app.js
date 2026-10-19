@@ -2989,8 +2989,10 @@ function attachPollEventListeners(poll) {
       handleTogglePollActive(poll.id);
     });
 
-    document.querySelector('.btn-view-poll-voters')?.addEventListener('click', () => {
-      openPollVotersModal(poll.id);
+    document.querySelectorAll('.btn-view-poll-voters').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openPollVotersModal(btn.dataset.pollId || poll.id);
+      });
     });
 
     document.querySelector('.btn-reset-poll-votes')?.addEventListener('click', () => {
@@ -3240,71 +3242,602 @@ async function handleResetPollVotes(pollId) {
 }
 
 /**
- * Modale de contrôle administratif des votants
+ * État et gestion du panneau d'audit des votes
  */
-function openPollVotersModal(pollId) {
+const votersModalState = {
+  pollId: null,
+  searchQuery: '',
+  activeFilter: 'all', // 'all' | 'suspect' | 'dirigeant' | 'r5'
+  viewMode: 'list',    // 'list' | 'grouped'
+  listenersAttached: false
+};
+
+/**
+ * Initialise les écouteurs d'événements du panneau d'audit des votants
+ */
+function initPollVotersModalEvents() {
+  if (votersModalState.listenersAttached) return;
+  votersModalState.listenersAttached = true;
+
+  const modal = document.getElementById('poll-voters-modal');
+  const searchInput = document.getElementById('poll-voters-search-input');
+  const clearBtn = document.getElementById('btn-clear-poll-voters-search');
+  const btnCloseTop = document.getElementById('btn-close-poll-voters-modal');
+  const btnCloseBottom = document.getElementById('btn-close-poll-voters-bottom');
+  const btnExport = document.getElementById('btn-export-poll-voters');
+  const btnViewList = document.getElementById('btn-voters-view-list');
+  const btnViewGrouped = document.getElementById('btn-voters-view-grouped');
+
+  // Recherche textuelle
+  searchInput?.addEventListener('input', (e) => {
+    votersModalState.searchQuery = e.target.value.trim().toLowerCase();
+    if (clearBtn) {
+      clearBtn.classList.toggle('hidden', !votersModalState.searchQuery);
+    }
+    renderPollVotersModalContent();
+  });
+
+  clearBtn?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    votersModalState.searchQuery = '';
+    clearBtn.classList.add('hidden');
+    renderPollVotersModalContent();
+    searchInput?.focus();
+  });
+
+  // Filtres rapides
+  document.querySelectorAll('.btn-filter-voters').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter || 'all';
+      votersModalState.activeFilter = filter;
+
+      // Mise à jour visuelle des boutons de filtre
+      document.querySelectorAll('.btn-filter-voters').forEach(b => {
+        const isActive = (b.dataset.filter || 'all') === filter;
+        if (isActive) {
+          b.className = 'btn-filter-voters px-2.5 py-1 rounded-lg font-bold text-xs transition bg-purple-500/30 text-purple-200 border border-purple-500/60 shadow-sm';
+        } else {
+          b.className = 'btn-filter-voters px-2.5 py-1 rounded-lg font-semibold text-xs transition bg-slate-800/80 text-slate-400 hover:text-slate-200 border border-slate-700/60';
+        }
+      });
+
+      renderPollVotersModalContent();
+    });
+  });
+
+  // Bascule du mode d'affichage
+  btnViewList?.addEventListener('click', () => {
+    votersModalState.viewMode = 'list';
+    btnViewList.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-purple-600 text-white shadow-sm';
+    btnViewGrouped.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5 bg-transparent';
+    renderPollVotersModalContent();
+  });
+
+  btnViewGrouped?.addEventListener('click', () => {
+    votersModalState.viewMode = 'grouped';
+    btnViewGrouped.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-purple-600 text-white shadow-sm';
+    btnViewList.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5 bg-transparent';
+    renderPollVotersModalContent();
+  });
+
+  // Bouton d'export / copie
+  btnExport?.addEventListener('click', exportPollVotesAudit);
+
+  // Fermeture modale
+  const closeModal = () => modal?.classList.add('hidden');
+  btnCloseTop?.addEventListener('click', closeModal);
+  btnCloseBottom?.addEventListener('click', closeModal);
+
+  // Fermeture au clic sur le fond sombre
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Fermeture touche Echap
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+}
+
+/**
+ * Modale de contrôle administratif des votants (Audit de régularité)
+ */
+async function openPollVotersModal(pollId) {
   if (!state.isAdmin) return;
   const poll = state.polls.find(p => p.id === pollId);
   if (!poll) return;
 
+  votersModalState.pollId = pollId;
+  initPollVotersModalEvents();
+
   const modal = document.getElementById('poll-voters-modal');
   const subtitle = document.getElementById('poll-voters-modal-subtitle');
-  const container = document.getElementById('poll-voters-list-container');
-  const countBadge = document.getElementById('poll-voters-count-badge');
-
-  if (subtitle) subtitle.textContent = `Sondage : "${poll.title}"`;
-  if (countBadge) countBadge.textContent = `Total : ${state.pollVotes.length} vote${state.pollVotes.length > 1 ? 's' : ''}`;
-
-  if (container) {
-    if (state.pollVotes.length === 0) {
-      container.innerHTML = `<div class="p-6 text-center text-slate-500 text-xs">Aucun vote enregistré pour le moment.</div>`;
-    } else {
-      container.innerHTML = state.pollVotes.map((v, i) => {
-        const dateStr = v.created_at ? new Date(v.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '-';
-        const isDirigeant = v.vote_role === 'Dirigeant';
-        return `
-          <div class="py-2.5 px-3 flex items-center justify-between gap-3 hover:bg-slate-800/40 rounded-xl transition">
-            <div class="flex items-center gap-2.5">
-              <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-[10px] shrink-0">${i + 1}</span>
-              <div>
-                <span class="font-bold text-white text-xs block">${escapeHtml(v.voter_pseudo)}</span>
-                <span class="text-[10px] text-slate-500">${dateStr}</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="text-right">
-                <span class="text-[10px] uppercase font-bold text-slate-400 block">Pour :</span>
-                <span class="font-black text-xs text-white">${escapeHtml(v.candidate_pseudo)}</span>
-              </div>
-              <span class="px-2 py-0.5 rounded-lg text-[10px] font-black ${isDirigeant ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'}">
-                ${isDirigeant ? '👑 Dirigeant' : '🛡️ R5'}
-              </span>
-              <button type="button" class="btn-admin-delete-vote p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
-                data-voter="${escapeHtml(v.voter_pseudo)}" data-candidate="${escapeHtml(v.candidate_pseudo)}" title="Supprimer ce vote">
-                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Écouteur pour suppression d'un vote par l'admin
-      container.querySelectorAll('.btn-admin-delete-vote').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const voter = btn.dataset.voter;
-          const candidate = btn.dataset.candidate;
-          if (confirm(`Supprimer le vote de "${voter}" pour "${candidate}" ?`)) {
-            await deleteCandidateVote(poll.id, voter, candidate);
-            showToast("Vote supprimé", "info");
-            await loadVotesForCurrentPoll();
-            openPollVotersModal(poll.id);
-          }
-        });
-      });
-    }
+  if (subtitle) {
+    subtitle.textContent = `Sondage : "${poll.title}" (${poll.is_active ? 'En cours' : 'Clôturé'})`;
   }
 
+  // Chargement des données fraîches des votes
+  try {
+    const votes = await fetchVotesForPoll(pollId);
+    state.pollVotes = votes || [];
+  } catch (err) {
+    console.warn("Erreur chargement frais des votes:", err);
+  }
+
+  renderPollVotersModalContent();
   modal?.classList.remove('hidden');
   initLucide();
 }
+
+/**
+ * Rendu du contenu dynamique de la modale de contrôle des votants
+ */
+function renderPollVotersModalContent() {
+  const container = document.getElementById('poll-voters-list-container');
+  if (!container || !votersModalState.pollId) return;
+
+  const poll = state.polls.find(p => p.id === votersModalState.pollId);
+  if (!poll) return;
+
+  const maxVotes = Number(poll.max_votes) || 5;
+
+  // Répertoire des joueurs officiellement inscrits dans la base de données
+  const registeredPlayersMap = new Map();
+  (state.players || []).forEach(p => {
+    if (p && p.pseudo) {
+      registeredPlayersMap.set(p.pseudo.trim().toLowerCase(), p);
+    }
+  });
+
+  // Classement Réel FAS pour afficher le rang officiel
+  const realRankedPlayers = getGeneralRealRanking(state.players || [], 999);
+  const realRankMap = new Map();
+  realRankedPlayers.forEach(p => {
+    if (p && p.pseudo) {
+      realRankMap.set(p.pseudo.trim().toLowerCase(), p.rank);
+    }
+  });
+
+  // Analyse de chaque bulletin de vote et détection des anomalies
+  const processedVotes = (state.pollVotes || []).map(v => {
+    const voterNorm = (v.voter_pseudo_normalized || v.voter_pseudo || '').trim().toLowerCase();
+    const candNorm = (v.candidate_pseudo || '').trim().toLowerCase();
+
+    const isVoterRegistered = registeredPlayersMap.has(voterNorm);
+    const voterRank = realRankMap.get(voterNorm);
+
+    const isCandidateRegistered = registeredPlayersMap.has(candNorm);
+    const candidateRank = realRankMap.get(candNorm);
+
+    const isSelfVoteForbidden = !poll.allow_self_vote && voterNorm === candNorm;
+
+    // Anomalie : votant non inscrit OU auto-vote interdit OU candidat non répertorié
+    const isSuspect = !isVoterRegistered || !isCandidateRegistered || isSelfVoteForbidden;
+
+    let suspectBadge = '';
+    if (!isVoterRegistered) {
+      suspectBadge = '⚠️ Nom inconnu / Non inscrit';
+    } else if (isSelfVoteForbidden) {
+      suspectBadge = '⚠️ Auto-vote non autorisé';
+    } else if (!isCandidateRegistered) {
+      suspectBadge = '⚠️ Candidat non inscrit';
+    }
+
+    return {
+      ...v,
+      voterNorm,
+      candNorm,
+      isVoterRegistered,
+      voterRank,
+      isCandidateRegistered,
+      candidateRank,
+      isSelfVoteForbidden,
+      isSuspect,
+      suspectBadge
+    };
+  });
+
+  // Regroupement par votant unique
+  const distinctVotersMap = new Map();
+  processedVotes.forEach(v => {
+    if (!distinctVotersMap.has(v.voterNorm)) {
+      distinctVotersMap.set(v.voterNorm, {
+        pseudo: v.voter_pseudo,
+        voterNorm: v.voterNorm,
+        isRegistered: v.isVoterRegistered,
+        voterRank: v.voterRank,
+        votes: []
+      });
+    }
+    distinctVotersMap.get(v.voterNorm).votes.push(v);
+  });
+
+  const totalVotesCount = processedVotes.length;
+  const distinctVotersCount = distinctVotersMap.size;
+  const suspectVotesCount = processedVotes.filter(v => v.isSuspect).length;
+  const suspectVotersCount = Array.from(distinctVotersMap.values()).filter(v => !v.isRegistered).length;
+  const dirigeantVotesCount = processedVotes.filter(v => v.vote_role === 'Dirigeant').length;
+  const r5VotesCount = processedVotes.filter(v => v.vote_role === 'R5').length;
+
+  // Mise à jour des compteurs sur les boutons de filtre
+  const elCountAll = document.getElementById('filter-count-all');
+  const elCountSuspect = document.getElementById('filter-count-suspect');
+  const elCountDirigeant = document.getElementById('filter-count-dirigeant');
+  const elCountR5 = document.getElementById('filter-count-r5');
+  if (elCountAll) elCountAll.textContent = totalVotesCount;
+  if (elCountSuspect) elCountSuspect.textContent = suspectVotesCount;
+  if (elCountDirigeant) elCountDirigeant.textContent = dirigeantVotesCount;
+  if (elCountR5) elCountR5.textContent = r5VotesCount;
+
+  // Mise à jour du résumé statistique rapide (Cartes en haut)
+  const statsBar = document.getElementById('poll-voters-stats-bar');
+  if (statsBar) {
+    statsBar.innerHTML = `
+      <div class="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+          <i data-lucide="inbox" class="w-4 h-4"></i>
+        </div>
+        <div class="min-w-0">
+          <span class="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Bulletins</span>
+          <span class="text-sm font-black text-white">${totalVotesCount} vote${totalVotesCount > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+          <i data-lucide="users" class="w-4 h-4"></i>
+        </div>
+        <div class="min-w-0">
+          <span class="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Votants</span>
+          <span class="text-sm font-black text-white">${distinctVotersCount} joueur${distinctVotersCount > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+        </div>
+        <div class="min-w-0">
+          <span class="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Inscrits FAS</span>
+          <span class="text-sm font-black text-emerald-300">${distinctVotersCount - suspectVotersCount} vérifié${(distinctVotersCount - suspectVotersCount) > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-2xl ${suspectVotesCount > 0 ? 'bg-rose-950/40 border-rose-500/50' : 'bg-slate-950/70 border-slate-800'} border flex items-center gap-2.5 transition">
+        <div class="w-8 h-8 rounded-xl ${suspectVotesCount > 0 ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-400'} flex items-center justify-center shrink-0">
+          <i data-lucide="${suspectVotesCount > 0 ? 'alert-triangle' : 'shield'}" class="w-4 h-4"></i>
+        </div>
+        <div class="min-w-0">
+          <span class="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Anomalies</span>
+          <span class="text-sm font-black ${suspectVotesCount > 0 ? 'text-rose-400 font-black animate-pulse' : 'text-slate-400'}">${suspectVotesCount} suspect${suspectVotesCount > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Filtrage des bulletins selon le filtre actif
+  let filteredVotes = processedVotes;
+  if (votersModalState.activeFilter === 'suspect') {
+    filteredVotes = filteredVotes.filter(v => v.isSuspect);
+  } else if (votersModalState.activeFilter === 'dirigeant') {
+    filteredVotes = filteredVotes.filter(v => v.vote_role === 'Dirigeant');
+  } else if (votersModalState.activeFilter === 'r5') {
+    filteredVotes = filteredVotes.filter(v => v.vote_role === 'R5');
+  }
+
+  // Filtrage par texte de recherche
+  if (votersModalState.searchQuery) {
+    const q = votersModalState.searchQuery;
+    filteredVotes = filteredVotes.filter(v =>
+      v.voter_pseudo.toLowerCase().includes(q) ||
+      v.candidate_pseudo.toLowerCase().includes(q)
+    );
+  }
+
+  // Badge du bas
+  const countBadge = document.getElementById('poll-voters-count-badge');
+  if (countBadge) {
+    countBadge.textContent = `Affichage de ${filteredVotes.length} sur ${totalVotesCount} vote${totalVotesCount > 1 ? 's' : ''} (${distinctVotersCount} votants)`;
+  }
+
+  // Aucun résultat
+  if (totalVotesCount === 0) {
+    container.innerHTML = `
+      <div class="p-8 text-center text-slate-500 space-y-2">
+        <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-600"></i>
+        <p class="text-xs">Aucun vote n'a encore été enregistré pour ce sondage.</p>
+      </div>
+    `;
+    initLucide();
+    return;
+  }
+
+  if (filteredVotes.length === 0) {
+    container.innerHTML = `
+      <div class="p-8 text-center text-slate-400 space-y-2 bg-slate-950/40 rounded-2xl border border-slate-800 my-2">
+        <i data-lucide="search-x" class="w-8 h-8 mx-auto text-slate-500"></i>
+        <p class="text-xs font-semibold">Aucun vote ne correspond à vos critères de recherche ou de filtre.</p>
+        <button type="button" id="btn-reset-voters-filters" class="text-xs text-purple-400 hover:text-purple-300 font-bold underline mt-1">
+          Réinitialiser la recherche et afficher tous les votes
+        </button>
+      </div>
+    `;
+    document.getElementById('btn-reset-voters-filters')?.addEventListener('click', () => {
+      votersModalState.searchQuery = '';
+      votersModalState.activeFilter = 'all';
+      const searchInput = document.getElementById('poll-voters-search-input');
+      if (searchInput) searchInput.value = '';
+      document.getElementById('btn-clear-poll-voters-search')?.classList.add('hidden');
+      document.querySelectorAll('.btn-filter-voters').forEach(b => {
+        const isActive = (b.dataset.filter || 'all') === 'all';
+        b.className = isActive
+          ? 'btn-filter-voters px-2.5 py-1 rounded-lg font-bold text-xs transition bg-purple-500/30 text-purple-200 border border-purple-500/60 shadow-sm'
+          : 'btn-filter-voters px-2.5 py-1 rounded-lg font-semibold text-xs transition bg-slate-800/80 text-slate-400 hover:text-slate-200 border border-slate-700/60';
+      });
+      renderPollVotersModalContent();
+    });
+    initLucide();
+    return;
+  }
+
+  // =========================================================================
+  // RENDU MODE 1 : VUE DÉTAILLÉE PAR VOTE (BULLETIN PAR BULLETIN)
+  // =========================================================================
+  if (votersModalState.viewMode === 'list') {
+    container.innerHTML = filteredVotes.map((v, i) => {
+      const dateStr = v.created_at ? new Date(v.created_at).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) : '-';
+      const isDirigeant = v.vote_role === 'Dirigeant';
+
+      // Badge conformité votant
+      let voterBadgeHtml = '';
+      if (v.isVoterRegistered) {
+        voterBadgeHtml = `
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
+            <i data-lucide="check" class="w-3 h-3 text-emerald-400"></i>
+            <span>Inscrit ${v.voterRank ? `(#${v.voterRank})` : ''}</span>
+          </span>
+        `;
+      } else {
+        voterBadgeHtml = `
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1 animate-pulse" title="Ce pseudo ne figure pas parmi les membres inscrits du clan">
+            <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-400"></i>
+            <span>Nom inconnu / Non inscrit</span>
+          </span>
+        `;
+      }
+
+      // Alerte auto-vote
+      const selfVoteBadge = v.isSelfVoteForbidden
+        ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-1">⚠️ Auto-vote interdit</span>`
+        : '';
+
+      // Alerte candidat non inscrit
+      const candBadge = !v.isCandidateRegistered
+        ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">⚠️ Candidat non répertorié</span>`
+        : '';
+
+      const rowBorderClass = v.isSuspect
+        ? 'border-rose-500/30 bg-rose-950/15 hover:bg-rose-950/25'
+        : 'border-slate-800/80 hover:bg-slate-800/40';
+
+      return `
+        <div class="py-2.5 px-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl border ${rowBorderClass} transition my-1">
+          <!-- Côté Votant -->
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="w-7 h-7 rounded-xl bg-slate-800/90 text-slate-400 font-bold flex items-center justify-center text-[10px] shrink-0 border border-slate-700/60">
+              ${i + 1}
+            </span>
+            <div class="min-w-0 space-y-0.5">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-black text-xs text-white truncate">${escapeHtml(v.voter_pseudo)}</span>
+                ${voterBadgeHtml}
+                ${selfVoteBadge}
+              </div>
+              <div class="flex items-center gap-2 text-[10px] text-slate-500">
+                <i data-lucide="clock" class="w-3 h-3"></i>
+                <span>${dateStr}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Côté Choix & Candidat -->
+          <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
+            <div class="text-left sm:text-right">
+              <div class="flex items-center gap-1.5 justify-start sm:justify-end">
+                <span class="text-[10px] uppercase font-bold text-slate-400">Pour :</span>
+                <span class="font-black text-xs text-white">${escapeHtml(v.candidate_pseudo)}</span>
+                ${candBadge}
+              </div>
+            </div>
+
+            <span class="px-2.5 py-1 rounded-xl text-[10px] font-black ${isDirigeant ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm shadow-amber-500/10' : 'bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10'} shrink-0">
+              ${isDirigeant ? '👑 Dirigeant' : '🛡️ R5'}
+            </span>
+
+            <button type="button" class="btn-admin-delete-vote p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 border border-transparent hover:border-rose-500/30 transition shrink-0"
+              data-voter="${escapeHtml(v.voter_pseudo)}" data-candidate="${escapeHtml(v.candidate_pseudo)}" title="Supprimer ce vote">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // =========================================================================
+  // RENDU MODE 2 : VUE GROUPÉE PAR VOTANT
+  // =========================================================================
+  else if (votersModalState.viewMode === 'grouped') {
+    // Regroupement à partir des bulletins filtrés
+    const filteredVotersMap = new Map();
+    filteredVotes.forEach(v => {
+      if (!filteredVotersMap.has(v.voterNorm)) {
+        filteredVotersMap.set(v.voterNorm, {
+          pseudo: v.voter_pseudo,
+          voterNorm: v.voterNorm,
+          isRegistered: v.isVoterRegistered,
+          voterRank: v.voterRank,
+          votes: []
+        });
+      }
+      filteredVotersMap.get(v.voterNorm).votes.push(v);
+    });
+
+    container.innerHTML = Array.from(filteredVotersMap.values()).map((voterGroup, i) => {
+      const isSuspect = !voterGroup.isRegistered;
+      const votesCount = voterGroup.votes.length;
+
+      const cardBorder = isSuspect
+        ? 'border-rose-500/40 bg-rose-950/20'
+        : 'border-slate-800 bg-slate-950/50';
+
+      const statusBadge = voterGroup.isRegistered
+        ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 text-emerald-400"></i> Membre Inscrit ${voterGroup.voterRank ? `(#${voterGroup.voterRank})` : ''}</span>`
+        : `<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1 animate-pulse"><i data-lucide="alert-triangle" class="w-3 h-3 text-rose-400"></i> Non répertorié dans le clan</span>`;
+
+      return `
+        <div class="p-3.5 rounded-2xl border ${cardBorder} space-y-2.5 my-2 transition">
+          <!-- En-tête de la fiche votant -->
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-xl bg-slate-800 text-slate-300 font-bold flex items-center justify-center text-xs shrink-0 border border-slate-700/60">
+                ${i + 1}
+              </span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-black text-sm text-white">${escapeHtml(voterGroup.pseudo)}</span>
+                  ${statusBadge}
+                </div>
+                <span class="text-[10px] text-slate-400">${votesCount} / ${maxVotes} votes exprimés</span>
+              </div>
+            </div>
+
+            <!-- Bouton pour supprimer TOUS les votes de ce votant en un clic -->
+            <button type="button" class="btn-admin-cancel-all-voter-votes px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 transition flex items-center gap-1.5 active:scale-95"
+              data-voter="${escapeHtml(voterGroup.pseudo)}" title="Supprimer tous les votes de ce joueur">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+              <span>Tout supprimer (${votesCount})</span>
+            </button>
+          </div>
+
+          <!-- Liste des choix de ce votant -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/60">
+            ${voterGroup.votes.map(v => {
+              const isDirigeant = v.vote_role === 'Dirigeant';
+              return `
+                <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm">${isDirigeant ? '👑' : '🛡️'}</span>
+                    <span class="font-bold text-xs text-white truncate">${escapeHtml(v.candidate_pseudo)}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="px-2 py-0.5 rounded-lg text-[9px] font-black ${isDirigeant ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'}">
+                      ${isDirigeant ? 'Dirigeant' : 'R5'}
+                    </span>
+                    <button type="button" class="btn-admin-delete-vote p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition"
+                      data-voter="${escapeHtml(v.voter_pseudo)}" data-candidate="${escapeHtml(v.candidate_pseudo)}" title="Supprimer ce vote">
+                      <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // =========================================================================
+  // ÉCOUTEURS D'ACTIONS DE SUPPRESSION (UNITAIRE & GROUPÉE)
+  // =========================================================================
+  // Suppression unitaire
+  container.querySelectorAll('.btn-admin-delete-vote').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const voter = btn.dataset.voter;
+      const candidate = btn.dataset.candidate;
+      if (confirm(`Supprimer le vote de "${voter}" pour "${candidate}" ?`)) {
+        try {
+          await deleteCandidateVote(poll.id, voter, candidate);
+          showToast(`Vote de "${voter}" pour "${candidate}" supprimé`, "info");
+          await loadVotesForCurrentPoll();
+          renderPollVotersModalContent();
+        } catch (err) {
+          console.error("Erreur suppression vote:", err);
+          showToast("Erreur lors de la suppression", "error");
+        }
+      }
+    });
+  });
+
+  // Suppression groupée de tous les votes d'un votant
+  container.querySelectorAll('.btn-admin-cancel-all-voter-votes').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const voter = btn.dataset.voter;
+      if (confirm(`Supprimer TOUS les votes émis par "${voter}" ? Cette action est irréversible.`)) {
+        try {
+          await cancelVote(poll.id, voter);
+          showToast(`Tous les votes de "${voter}" ont été supprimés`, "info");
+          await loadVotesForCurrentPoll();
+          renderPollVotersModalContent();
+        } catch (err) {
+          console.error("Erreur suppression globale votes joueur:", err);
+          showToast("Impossible d'annuler les votes de ce joueur", "error");
+        }
+      }
+    });
+  });
+
+  initLucide();
+}
+
+/**
+ * Exporte l'audit complet des votes au format texte / CSV dans le presse-papier
+ */
+function exportPollVotesAudit() {
+  const poll = state.polls.find(p => p.id === votersModalState.pollId);
+  if (!poll) return;
+
+  const realRankedPlayers = getGeneralRealRanking(state.players || [], 999);
+  const realRankMap = new Map();
+  realRankedPlayers.forEach(p => {
+    if (p && p.pseudo) {
+      realRankMap.set(p.pseudo.trim().toLowerCase(), p.rank);
+    }
+  });
+
+  const registeredSet = new Set((state.players || []).map(p => (p?.pseudo || '').trim().toLowerCase()));
+
+  let text = `=== AUDIT DES VOTES - SONDAGE : ${poll.title} ===\n`;
+  text += `Date de l'audit : ${new Date().toLocaleString('fr-FR')}\n`;
+  text += `Statut du sondage : ${poll.is_active ? 'Ouvert' : 'Clôturé'}\n`;
+  text += `Total de bulletins : ${state.pollVotes.length}\n`;
+  text += `--------------------------------------------------------------------------------\n`;
+  text += `N°\tVOTANT\tCONFORMITÉ\tRANG_RÉEL\tPOUR_CANDIDAT\TRÔLE\tDATE_VOTE\n`;
+
+  state.pollVotes.forEach((v, idx) => {
+    const voterNorm = (v.voter_pseudo_normalized || v.voter_pseudo || '').trim().toLowerCase();
+    const isReg = registeredSet.has(voterNorm);
+    const rank = realRankMap.get(voterNorm) || '-';
+    const dateStr = v.created_at ? new Date(v.created_at).toLocaleString('fr-FR') : '-';
+    text += `${idx + 1}\t${v.voter_pseudo}\t${isReg ? 'Inscrit' : 'NON_INSCRIT_SUSPECT'}\t${rank}\t${v.candidate_pseudo}\t${v.vote_role}\t${dateStr}\n`;
+  });
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("✓ Données d'audit copiées dans le presse-papier !", "success");
+  }).catch(() => {
+    showToast("Impossible de copier dans le presse-papier", "error");
+  });
+}
+
 
