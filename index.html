@@ -26,7 +26,7 @@
   <script src="./confetti.browser.min.js"></script>
 
   <!-- Style CSS personnalisé -->
-  <link rel="stylesheet" href="./style.css?v=20261019_2">
+  <link rel="stylesheet" href="./style.css?v=20261125_1">
 </head>
 <body class="bg-ambient min-h-screen flex flex-col text-slate-100 selection:bg-brand-500 selection:text-white">
 
@@ -361,30 +361,31 @@
           </div>
 
           <div class="space-y-6">
-            <!-- 1. Nombre de tickets (0 à 500 000) -->
+            <!-- 1. Nombre de tickets (0 à 2 000 000) -->
             <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div class="flex items-center justify-between">
                 <label for="input-skills-tickets" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <i data-lucide="ticket" class="w-4 h-4 text-emerald-400"></i>
                   Nombre de tickets
                 </label>
-                <span class="text-xs font-medium text-slate-400">0 à 500.000</span>
+                <span class="text-xs font-medium text-slate-400">0 à 2.000.000</span>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="number" id="input-skills-tickets" min="0" max="500000" step="1" value="0"
+                <input type="number" id="input-skills-tickets" min="0" max="2000000" step="1" value="0"
                   class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
               </div>
 
-              <input type="range" id="range-skills-tickets" min="0" max="500000" step="500" value="0" class="w-full">
+              <input type="range" id="range-skills-tickets" min="0" max="2000000" step="1000" value="0" class="w-full">
               
               <!-- Puces de raccourcis rapides -->
               <div class="flex flex-wrap gap-1.5 pt-1">
                 <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-val="0">0</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="5000">+5k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="25000">+25k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="100000">+100k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-val="500000">Max (500k)</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="10000">+10k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="50000">+50k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="250000">+250k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-add="500000">+500k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="skills-tickets" data-val="2000000">Max (2M)</button>
               </div>
             </div>
 
@@ -406,14 +407,14 @@
               <input type="hidden" id="input-skills-ascension" value="0">
             </div>
 
-            <!-- 3. Niveau atteint dans l'ascension (0 à 100) -->
+            <!-- 3. Niveau atteint dans l'ascension (0 à 100, ou 150 en Asc. 3) -->
             <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div class="flex items-center justify-between">
                 <label for="input-skills-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
                   Niveau atteint dans l'ascension
                 </label>
-                <span class="text-xs font-medium text-slate-400">0 à 100</span>
+                <span id="label-skills-ascension-level-max" class="text-xs font-medium text-slate-400">0 à 100</span>
               </div>
               <div class="flex items-center gap-3">
                 <input type="number" id="input-skills-ascension-level" min="0" max="100" step="1" value="0"
@@ -472,30 +473,31 @@
           </div>
 
           <div class="space-y-6">
-            <!-- 1. Nombre d'œufs (0 à 200 000) -->
+            <!-- 1. Nombre d'œufs (0 à 1 500 000) -->
             <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div class="flex items-center justify-between">
                 <label for="input-eggs-count" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <i data-lucide="egg" class="w-4 h-4 text-amber-400"></i>
                   Nombre d'œufs
                 </label>
-                <span class="text-xs font-medium text-slate-400">0 à 200.000</span>
+                <span class="text-xs font-medium text-slate-400">0 à 1.500.000</span>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="number" id="input-eggs-count" min="0" max="200000" step="1" value="0"
+                <input type="number" id="input-eggs-count" min="0" max="1500000" step="1" value="0"
                   class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
               </div>
 
-              <input type="range" id="range-eggs-count" min="0" max="200000" step="200" value="0" class="w-full">
+              <input type="range" id="range-eggs-count" min="0" max="1500000" step="1000" value="0" class="w-full">
               
               <!-- Puces rapides -->
               <div class="flex flex-wrap gap-1.5 pt-1">
                 <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-val="0">0</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="2000">+2k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="10000">+10k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="50000">+50k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-val="200000">Max (200k)</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="5000">+5k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="25000">+25k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="100000">+100k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-add="250000">+250k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="eggs-count" data-val="1500000">Max (1.5M)</button>
               </div>
             </div>
 
@@ -517,14 +519,14 @@
               <input type="hidden" id="input-eggs-ascension" value="0">
             </div>
 
-            <!-- 3. Niveau atteint dans l'ascension (0 à 100) -->
+            <!-- 3. Niveau atteint dans l'ascension (0 à 100, ou 150 en Asc. 3) -->
             <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div class="flex items-center justify-between">
                 <label for="input-eggs-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
                   Niveau atteint dans l'ascension
                 </label>
-                <span class="text-xs font-medium text-slate-400">0 à 100</span>
+                <span id="label-eggs-ascension-level-max" class="text-xs font-medium text-slate-400">0 à 100</span>
               </div>
               <div class="flex items-center gap-3">
                 <input type="number" id="input-eggs-ascension-level" min="0" max="100" step="1" value="0"
@@ -606,30 +608,31 @@
           </div>
 
           <div class="space-y-6">
-            <!-- 1. Nombre de clés (0 à 200 000) -->
+            <!-- 1. Nombre de clés (0 à 1 000 000) -->
             <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div class="flex items-center justify-between">
                 <label for="input-mount-keys" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <i data-lucide="key" class="w-4 h-4 text-cyan-400"></i>
                   Nombre de clés
                 </label>
-                <span class="text-xs font-medium text-slate-400">0 à 200.000</span>
+                <span class="text-xs font-medium text-slate-400">0 à 1.000.000</span>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="number" id="input-mount-keys" min="0" max="200000" step="1" value="0"
+                <input type="number" id="input-mount-keys" min="0" max="1000000" step="1" value="0"
                   class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
               </div>
 
-              <input type="range" id="range-mount-keys" min="0" max="200000" step="200" value="0" class="w-full">
+              <input type="range" id="range-mount-keys" min="0" max="1000000" step="500" value="0" class="w-full">
               
               <!-- Puces rapides -->
               <div class="flex flex-wrap gap-1.5 pt-1">
                 <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-val="0">0</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="2000">+2k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="10000">+10k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="50000">+50k</button>
-                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-val="200000">Max (200k)</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="5000">+5k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="25000">+25k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="100000">+100k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-add="250000">+250k</button>
+                <button type="button" class="quick-add-btn text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700" data-target="mount-keys" data-val="1000000">Max (1M)</button>
               </div>
             </div>
 
@@ -651,14 +654,14 @@
               <input type="hidden" id="input-mount-ascension" value="0">
             </div>
 
-            <!-- 3. Niveau atteint dans l'ascension (0 à 100) -->
+            <!-- 3. Niveau atteint dans l'ascension (0 à 100, ou 150 en Asc. 3) -->
             <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div class="flex items-center justify-between">
                 <label for="input-mount-ascension-level" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
                   Niveau atteint dans l'ascension
                 </label>
-                <span class="text-xs font-medium text-slate-400">0 à 100</span>
+                <span id="label-mount-ascension-level-max" class="text-xs font-medium text-slate-400">0 à 100</span>
               </div>
               <div class="flex items-center gap-3">
                 <input type="number" id="input-mount-ascension-level" min="0" max="100" step="1" value="0"
@@ -1238,7 +1241,7 @@
           </div>
           <div class="flex items-center gap-2">
             <input type="number" id="ascension-modal-new-level" min="0" max="100" class="w-16 px-2 py-1 text-center font-bold bg-slate-900 border border-emerald-500/40 rounded-lg text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs">
-            <span class="text-slate-500 font-semibold">/ 100</span>
+            <span id="ascension-modal-max-level-label" class="text-slate-500 font-semibold">/ 100</span>
           </div>
         </div>
 
@@ -1557,6 +1560,6 @@
   </footer>
 
   <!-- Scripts applicatifs en module ES6 (cache-buster anti-cache Discord) -->
-  <script type="module" src="./app.js?v=20261019_2"></script>
+  <script type="module" src="./app.js?v=20261125_1"></script>
 </body>
 </html>

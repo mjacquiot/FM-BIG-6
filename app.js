@@ -23,7 +23,7 @@ import {
   deleteCandidateVote,
   cancelVote,
   resetPollVotes
-} from './supabaseClient.js?v=20261018_5';
+} from './supabaseClient.js?v=20261125_1';
 
 import {
   simulateRealProgression,
@@ -32,9 +32,9 @@ import {
   getGeneralRealRanking,
   getGeneralRawRanking,
   getOrdreAscensionWithElus
-} from './rankingEngine.js?v=20261018_5';
+} from './rankingEngine.js?v=20261125_1';
 
-import { initDiscordActivity } from './discordActivity.js?v=20261018_5';
+import { initDiscordActivity } from './discordActivity.js?v=20261125_1';
 
 // =============================================================================
 // ÉTAT DE L'APPLICATION
@@ -396,6 +396,44 @@ function setupSyncRangeAndNumber(numberId, rangeId) {
 }
 
 /**
+ * Met à jour dynamiquement le plafond du niveau dans l'ascension (0 à 100, ou 0 à 150 en Ascension 3)
+ */
+function updateAscensionLevelLimit(category, ascValue) {
+  if (category !== 'skills' && category !== 'eggs' && category !== 'mount') return;
+  const maxLvl = Number(ascValue) >= 3 ? 150 : 100;
+
+  const inputEl = document.getElementById(`input-${category}-ascension-level`);
+  const rangeEl = document.getElementById(`range-${category}-ascension-level`);
+  const labelEl = document.getElementById(`label-${category}-ascension-level-max`);
+
+  if (inputEl) {
+    inputEl.max = String(maxLvl);
+    const curVal = parseInt(inputEl.value, 10) || 0;
+    if (curVal > maxLvl) inputEl.value = String(maxLvl);
+  }
+  if (rangeEl) {
+    rangeEl.max = String(maxLvl);
+    const curVal = parseInt(rangeEl.value, 10) || 0;
+    if (curVal > maxLvl) rangeEl.value = String(maxLvl);
+  }
+  if (labelEl) {
+    if (maxLvl === 150) {
+      labelEl.textContent = '0 à 150 (Asc. 3)';
+      labelEl.className = 'text-xs font-bold text-emerald-400';
+    } else {
+      labelEl.textContent = '0 à 100';
+      labelEl.className = 'text-xs font-medium text-slate-400';
+    }
+  }
+}
+
+function syncAscensionGroupLimit(groupName, value) {
+  if (groupName === 'skills-ascension') updateAscensionLevelLimit('skills', value);
+  else if (groupName === 'eggs-ascension') updateAscensionLevelLimit('eggs', value);
+  else if (groupName === 'mount-ascension') updateAscensionLevelLimit('mount', value);
+}
+
+/**
  * Configure les boutons segmentés (Pill buttons)
  */
 function setupPillGroup(groupName, hiddenInputId) {
@@ -409,6 +447,7 @@ function setupPillGroup(groupName, hiddenInputId) {
       if (hiddenInput) {
         hiddenInput.value = btn.dataset.val;
       }
+      syncAscensionGroupLimit(groupName, btn.dataset.val);
     });
   });
 }
@@ -425,6 +464,8 @@ function setPillGroupValue(groupName, hiddenInputId, value) {
       btn.classList.remove('active');
     }
   });
+
+  syncAscensionGroupLimit(groupName, value);
 }
 
 /**
@@ -841,9 +882,9 @@ function updateCriteriaDescription() {
   } else if (state.rankingView === 'general-raw') {
     criteriaText.innerHTML = `<strong>Classement Hors Ressources :</strong> Basé uniquement sur les valeurs actuelles saisies. Somme des rangs bruts dans les 4 catégories.`;
   } else if (state.rankingView === 'avancement') {
-    criteriaText.innerHTML = `<strong>Classement d'Avancement Réel :</strong> Progression simulée après dépense des ressources (100 niveaux/palier) : 1) Ascension simulée &rarr; 2) Niveau atteint &rarr; 3) Ressources résiduelles &rarr; 4) Tech. Plafond maximal : Ascension 3 Niv. 100.`;
+    criteriaText.innerHTML = `<strong>Classement d'Avancement Réel :</strong> Progression simulée après dépense des ressources (100 niveaux/palier, puis barème progressif de 101 à 150 en Ascension 3) : 1) Ascension simulée &rarr; 2) Niveau atteint &rarr; 3) Ressources résiduelles &rarr; 4) Tech. Plafond maximal : Ascension 3 Niv. 150.`;
   } else if (state.rankingView === 'ordre') {
-    criteriaText.innerHTML = `<strong>Ordre d'Ascension :</strong> Priorité 1 aux joueurs ayant coché <em>« Je veux faire mon ascension »</em> (<strong>Les Élus</strong>, en jaune doré). Classés par <strong>Points de Guerre prévisionnels</strong> (simulation multi-ascensions avec seuil minimal de 30/100 pour entamer l'ascension suivante + fusions). Les joueurs n'ayant pas coché l'ascension suivent en 2ème partie, et les joueurs au palier max (Asc. 3 Niv. 100) sont relégués en fin de tableau. Le badge <em>⚡ Rush</em> indique la disponibilité au rush nocturne (01h00 - 02h00).`;
+    criteriaText.innerHTML = `<strong>Ordre d'Ascension :</strong> Priorité 1 aux joueurs pouvant encore passer une ascension et ayant coché <em>« Je veux faire mon ascension »</em> (<strong>Les Élus</strong>, en jaune doré). Classés par <strong>Points de Guerre prévisionnels</strong> (barème progressif de 101 à 150 + fusions). Les joueurs déjà en <strong>Asc. 3 Niv. 100–149</strong> restent éligibles dans la <strong>Suite</strong> pour dépenser leurs invocations (101–150) et fusions ; seuls les joueurs <strong>Asc. 3 Niv. 150</strong> sans fusions sont relégués en fin de tableau. Le badge <em>⚡ Rush</em> indique la disponibilité au rush nocturne (01h00 - 02h00).`;
   }
 }
 
@@ -1252,11 +1293,11 @@ function renderPlayerRow(player) {
   let rowHighlightClass = 'hover:bg-slate-800/40';
 
   if (state.rankingView === 'ordre') {
-    if (player.isMaxed) {
+    if (player.isFullyBlocked) {
       statusBadgeHtml = `
         <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700 inline-flex items-center gap-1 shadow-sm">
           <i data-lucide="lock" class="w-3 h-3 text-slate-400"></i>
-          Ascension Max
+          Niveau Max (150)
         </span>
       `;
       rankClass = "bg-slate-800/60 text-slate-500 border border-slate-700/60";
@@ -1271,11 +1312,15 @@ function renderPlayerRow(player) {
       rankClass = "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black";
       rowHighlightClass = 'row-elu';
     } else {
+      const postAscTag = player.isPostAscension
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-flex items-center gap-1 shadow-sm">${player.isMaxed ? 'Niv. 150 • Fusions' : 'Late Game (100+)'}</span>`
+        : '';
       statusBadgeHtml = `
         <span class="px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 inline-flex items-center gap-1 shadow-sm">
           <i data-lucide="user" class="w-3 h-3 text-slate-500"></i>
           Suite #${player.rank}
         </span>
+        ${postAscTag}
       `;
       rankClass = "bg-slate-800 text-slate-400 border border-slate-700";
       rowHighlightClass = 'hover:bg-slate-800/40';
@@ -1361,7 +1406,7 @@ function renderPlayerRow(player) {
     const sim = player.sim || {};
     const warPoints = player.warPoints || 0;
 
-    if (player.isMaxed) {
+    if (player.isFullyBlocked) {
       detailsHtml = `
         <div class="flex flex-wrap items-center gap-2 text-xs">
           <span class="font-bold text-slate-400 flex items-center gap-1">
@@ -1369,12 +1414,12 @@ function renderPlayerRow(player) {
             ${formatNumber(resCount)}
           </span>
           <span class="text-slate-500">•</span>
-          <span class="text-amber-400 font-bold">Asc. 3 (Niv. 100)</span>
+          <span class="text-amber-400 font-bold">Asc. 3 (Niv. 150)</span>
           <span class="text-slate-500">•</span>
           <span class="text-purple-300">Tech: ${techLvl}</span>
           <span class="text-slate-500">•</span>
           <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-semibold border border-slate-700">
-            Niveau Max Atteint (aucune ascension possible)
+            Niveau Max Atteint (150/150)
           </span>
         </div>
       `;
@@ -1790,8 +1835,8 @@ function openAscensionConfirmModal(playerId, category) {
     catLabel = 'Monture (Clés)';
   }
 
-  if (currentAsc >= 3 && currentLvl >= 100) {
-    showToast(`${player.pseudo} est déjà au palier maximum absolu (Ascension 3, Niveau 100)`, "info");
+  if (currentAsc >= 3 && currentLvl >= 150) {
+    showToast(`${player.pseudo} est déjà au palier maximum absolu (Ascension 3, Niveau 150)`, "info");
     return;
   }
 
@@ -1799,19 +1844,18 @@ function openAscensionConfirmModal(playerId, category) {
   const sim = simulateRealProgression(category, currentAsc, currentLvl, techLevel, currentRes, true);
 
   // L'ascension avance d'au moins +1 (ou sim.finalAscension), plafonnée à 3
-  const targetAsc = Math.min(3, Math.max(currentAsc + 1, sim.finalAscension));
+  const targetAsc = currentAsc >= 3 ? 3 : Math.min(3, Math.max(currentAsc + 1, sim.finalAscension));
+  const maxLvlForTarget = targetAsc >= 3 ? 150 : 100;
 
-  // Niveau atteint dans la nouvelle ascension
+  // Niveau atteint dans l'ascension cible
   let defaultNewLevel = 0;
-  if (sim.finalAscension > currentAsc) {
-    defaultNewLevel = Math.min(100, Math.max(0, sim.finalLevel));
+  if (currentAsc >= 3) {
+    defaultNewLevel = Math.min(150, Math.max(currentLvl, sim.finalLevel));
+  } else if (sim.finalAscension > currentAsc) {
+    defaultNewLevel = Math.min(maxLvlForTarget, Math.max(0, sim.finalLevel));
   } else {
     // Si la quantité de ressources ne permettait pas de franchir 100 niveaux, mais que l'ascension est marquée faite
     defaultNewLevel = 0;
-  }
-
-  if (targetAsc >= 3 && defaultNewLevel > 100) {
-    defaultNewLevel = 100;
   }
 
   state.ascensionTarget = {
@@ -1830,13 +1874,18 @@ function openAscensionConfirmModal(playerId, category) {
   const oldAscSpan = document.getElementById('ascension-modal-old-asc');
   const newAscSpan = document.getElementById('ascension-modal-new-asc');
   const newLvlInput = document.getElementById('ascension-modal-new-level');
+  const maxLvlLabel = document.getElementById('ascension-modal-max-level-label');
   const oldResSpan = document.getElementById('ascension-modal-old-res');
 
   if (pseudoSpan) pseudoSpan.textContent = player.pseudo;
   if (catSpan) catSpan.textContent = catLabel;
   if (oldAscSpan) oldAscSpan.textContent = `Asc. ${currentAsc} (Niv. ${currentLvl})`;
   if (newAscSpan) newAscSpan.textContent = `Asc. ${targetAsc}`;
-  if (newLvlInput) newLvlInput.value = defaultNewLevel;
+  if (newLvlInput) {
+    newLvlInput.max = String(maxLvlForTarget);
+    newLvlInput.value = defaultNewLevel;
+  }
+  if (maxLvlLabel) maxLvlLabel.textContent = `/ ${maxLvlForTarget}`;
   if (oldResSpan) oldResSpan.textContent = formatNumber(currentRes);
 
   modal.classList.remove('hidden');
@@ -1857,10 +1906,10 @@ async function executeConfirmAscension() {
   const confirmBtn = document.getElementById('btn-confirm-ascension');
   const newLvlInput = document.getElementById('ascension-modal-new-level');
 
+  const maxLvlForTarget = targetAsc >= 3 ? 150 : 100;
   let newLevel = parseInt(newLvlInput ? newLvlInput.value : 0, 10);
   if (isNaN(newLevel) || newLevel < 0) newLevel = 0;
-  if (newLevel > 100) newLevel = 100;
-  if (targetAsc >= 3 && newLevel > 100) newLevel = 100;
+  if (newLevel > maxLvlForTarget) newLevel = maxLvlForTarget;
 
   const originalContent = confirmBtn.innerHTML;
   confirmBtn.disabled = true;

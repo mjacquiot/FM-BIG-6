@@ -29,7 +29,10 @@ ADD COLUMN IF NOT EXISTS mount_fusions INTEGER NOT NULL DEFAULT 0
 CHECK (mount_fusions >= 0 AND mount_fusions <= 2000);
 ```
 
-### Option B : Si vous partez de zéro (Nouvelle base)
+### Option B : Mise à jour Niveau 150 (Ascension 3)
+Si votre table existe déjà, exécutez également [`sql/update_level_150.sql`](./sql/update_level_150.sql) dans **SQL Editor** pour relever les contraintes de niveau à `150` et les plafonds de ressources (`2M` tickets, `1.5M` œufs, `1M` clés).
+
+### Option C : Si vous partez de zéro (Nouvelle base)
 Exécutez le script complet disponible dans [`sql/create_tables.sql`](./sql/create_tables.sql).
 
 ### Compte Administrateur (`admin@admin.fr`)
@@ -51,20 +54,22 @@ Pour simuler le franchissement des niveaux d'ascension (100 niveaux par palier d
 | **4** | 56 600 | 303 840 | 136 800 |
 | **5** | 50 160 | 284 850 | 127 600 |
 
+*Remarque pour les niveaux 101 à 150 (Ascension 3 uniquement) :* Le coût par palier suit le tableau progressif officiel des invocations (indexé sur Tech 5 pour Compétences/Œufs et Tech 4 pour Monture, avec application du ratio de réduction pour les autres niveaux de tech).
+
 *Remarque pour la Forge :* L'avancement (0 à 35 par palier) ne fait pas l'objet d'un barème de dépense par tech et reste calculé directement sur les valeurs saisies.
 
 ---
 
 ## ⚔️ 3. Formules des Points de Guerre (War Points)
 
-Dans la vue **Ordre d'Ascension**, les points de guerre sont calculés en direct pour chaque joueur sur les **niveaux gagnés/franchis grâce aux ressources dépensées pendant le rush** :
+Dans la vue **Ordre d'Ascension**, les points de guerre sont calculés en direct pour chaque joueur sur la somme exacte des invocations franchies grâce aux ressources dépensées (`110 / 23 / 20` invocations par niveau jusqu'à `100`, puis le barème progressif du tableau pour `101` à `150`) :
 
 1. **Compétence :**
-   $$\text{Points} = \text{niveaux\_gagnés} \times 110 \times 175$$
+   $$\text{Points} = \text{invocations\_franchies} \times 175$$
 2. **Œufs :**
-   $$\text{Points} = (\text{fusions\_œufs} \times 2250) + (\text{niveaux\_gagnés} \times 23 \times 2250)$$
+   $$\text{Points} = (\text{fusions\_œufs} \times 2250) + (\text{invocations\_franchies} \times 2250)$$
 3. **Monture :**
-   $$\text{Points} = (\text{fusions\_monture} \times 1080) + (\text{niveaux\_gagnés} \times 20 \times 1080 \times 2)$$
+   $$\text{Points} = (\text{fusions\_monture} \times 1080) + (\text{invocations\_franchies} \times 1080 \times 2)$$
 
 ---
 
@@ -83,8 +88,8 @@ L'onglet **Résultats** propose 4 vues dynamiques :
 4. **🚀 Ordre d'Ascension (Rush)** :
    - Disponible pour **Compétences**, **Œufs** et **Montures**.
    - **Simulation limitée à 1 seule ascension** : Contrairement au classement réel où plusieurs ascensions peuvent s'enchaîner, la simulation du rush s'arrête à 1 seul passage d'ascension maximum (`initialAscension + 1, Niv. 100`).
-   - **Plafond maximal du jeu** : L'Ascension 4 n'existe pas ; le palier maximal est fixé à **Ascension 3, Niveau 100**.
-   - **Relégation des joueurs maxés** : Tout joueur ayant atteint l'Ascension 3 Niveau 100 est relégué en toute fin de liste (avec badge `🔒 Ascension Max`), car il ne peut plus réaliser d'ascension pour ce rush.
+   - **Plafond maximal du jeu** : L'Ascension 4 n'existe pas ; le palier maximal est fixé à **Ascension 3, Niveau 150** (pour Compétences, Œufs et Montures).
+   - **Joueurs en Ascension 3 (Niv. 100–149) & Fusions** : Ils ne peuvent plus passer d'ascension (pas dans le groupe *Les Élus*), mais restent pleinement éligibles dans la *Suite* pour dépenser leurs invocations (101–150) et leurs fusions. Seuls les joueurs à **Asc. 3 Niv. 150** sans fusions sont relégués en fin de tableau (`🔒 Niveau Max (150)`).
    - **Les 4 Élus du Rush** : Sélectionne 1 Élu pour chaque créneau horaire (**Matin 2h-9h**, **Midi 9h-15h**, **Soir 15h-01h**, **Rush 01h-02h**) parmi les joueurs non-maxés ayant le plus de ressources.
    - **Suite du classement (5ème au 50ème)** : Joueurs restants classés par ressources décroissantes avec macarons de passage (**Priorité 1**, **Priorité 2**, etc.).
    - Affichage en direct des **Points de Guerre** calculés sur les niveaux franchis.
@@ -100,9 +105,9 @@ L'onglet **Résultats** propose 4 vues dynamiques :
     - ☀️ **Midi** (9h - 15h00)
     - 🌙 **Soir** (15h00 - 01h00)
     - ⚡ **Rush** (01h00 - 02h00)
-- **Étape 1 (Compétences)** : Tickets (0 à 500k), Ascension (0 à 3), Niveau (0 à 100), Tech (0 à 5).
-- **Étape 2 (Œufs)** : Œufs (0 à 200k), Ascension (0 à 3), Niveau (0 à 100), Tech (0 à 5) + **Fusions disponibles tout de suite** (0 à 10k).
-- **Étape 3 (Montures)** : Clés (0 à 200k), Ascension (0 à 3), Niveau (0 à 100), Tech (0 à 5) + **Fusions disponibles tout de suite** (0 à 2k).
+- **Étape 2 (Compétences)** : Tickets (0 à 2M), Ascension (0 à 3), Niveau (0 à 100, ou 0 à 150 en Asc. 3), Tech (0 à 5).
+- **Étape 3 (Œufs)** : Œufs (0 à 1.5M), Ascension (0 à 3), Niveau (0 à 100, ou 0 à 150 en Asc. 3), Tech (0 à 5) + **Fusions disponibles tout de suite** (0 à 10k).
+- **Étape 4 (Montures)** : Clés (0 à 1M), Ascension (0 à 3), Niveau (0 à 100, ou 0 à 150 en Asc. 3), Tech (0 à 5) + **Fusions disponibles tout de suite** (0 à 2k).
 - **Étape 4 (Forge)** : Marteaux (0 à 500k), Ascension (0 à 3), Niveau (0 à 35).
 
 ---

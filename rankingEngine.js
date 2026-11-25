@@ -9,40 +9,147 @@ export const TECH_COSTS_100 = {
   eggs: [191400, 174000, 159500, 147300, 136800, 127600]
 };
 
+export const MAX_ASCENSION = 3;
+export const MAX_LEVEL_STANDARD = 100;
+export const MAX_LEVEL_ASC3 = 150;
+export const MAX_LEVEL_FORGE = 35;
+
+// Coût en ressources d'une invocation unitaire
+export const RESOURCE_PER_INVOCATION = {
+  skills: 30,
+  eggs: 100,
+  mount: 40
+};
+
+// Niveau de technologie de référence correspondant au tableau officiel 101-150
+export const LATE_GAME_REF_TECH = {
+  skills: 5,
+  eggs: 5,
+  mount: 4
+};
+
+// Invocations par niveau pour les niveaux <= 100
+export const STANDARD_INVOCATIONS_PER_LEVEL = {
+  skills: 110,
+  eggs: 23,
+  mount: 20
+};
+
+// Tableau officiel des invocations requises par palier pour les niveaux 101 à 150 (Ascension 3)
+export const LATE_GAME_INVOCATIONS = {
+  skills: {
+    101: 185, 102: 260, 103: 335, 104: 410, 105: 485,
+    106: 560, 107: 635, 108: 710, 109: 785, 110: 860,
+    111: 935, 112: 1010, 113: 1085, 114: 1160, 115: 1235,
+    116: 1310, 117: 1385, 118: 1460, 119: 1500, 120: 1500,
+    121: 1500, 122: 1500, 123: 1500, 124: 1500, 125: 1500,
+    126: 1500, 127: 1500, 128: 1500, 129: 1500, 130: 1500,
+    131: 1500, 132: 1500, 133: 1500, 134: 1500, 135: 1500,
+    136: 1500, 137: 1500, 138: 1500, 139: 1500, 140: 1500,
+    141: 1500, 142: 1500, 143: 1500, 144: 1500, 145: 1500,
+    146: 1500, 147: 1500, 148: 1500, 149: 1500, 150: 1500
+  },
+  eggs: {
+    101: 32, 102: 41, 103: 50, 104: 59, 105: 68,
+    106: 77, 107: 86, 108: 95, 109: 104, 110: 113,
+    111: 122, 112: 131, 113: 140, 114: 149, 115: 158,
+    116: 167, 117: 176, 118: 185, 119: 194, 120: 203,
+    121: 212, 122: 221, 123: 230, 124: 239, 125: 248,
+    126: 257, 127: 266, 128: 275, 129: 284, 130: 293,
+    131: 302, 132: 311, 133: 320, 134: 329, 135: 338,
+    136: 347, 137: 356, 138: 365, 139: 374, 140: 383,
+    141: 392, 142: 401, 143: 410, 144: 419, 145: 428,
+    146: 437, 147: 446, 148: 455, 149: 464, 150: 473
+  },
+  mount: {
+    101: 32, 102: 44, 103: 56, 104: 68, 105: 80,
+    106: 92, 107: 104, 108: 116, 109: 128, 110: 140,
+    111: 152, 112: 164, 113: 176, 114: 188, 115: 200,
+    116: 212, 117: 224, 118: 236, 119: 248, 120: 260,
+    121: 272, 122: 284, 123: 296, 124: 308, 125: 320,
+    126: 332, 127: 344, 128: 356, 129: 368, 130: 380,
+    131: 392, 132: 404, 133: 416, 134: 428, 135: 440,
+    136: 452, 137: 464, 138: 476, 139: 488, 140: 500,
+    141: 512, 142: 524, 143: 536, 144: 548, 145: 560,
+    146: 572, 147: 584, 148: 596, 149: 608, 150: 620
+  }
+};
+
+/**
+ * Retourne le niveau maximal autorisé dans une ascension donnée
+ */
+export function getMaxLevelForAscension(category, ascension) {
+  if (category === 'forge') return MAX_LEVEL_FORGE;
+  return Number(ascension) >= MAX_ASCENSION ? MAX_LEVEL_ASC3 : MAX_LEVEL_STANDARD;
+}
+
+/**
+ * Retourne le nombre d'invocations requises pour atteindre un niveau cible
+ */
+export function getInvocationsForLevel(category, targetLevel) {
+  if (targetLevel >= 101 && targetLevel <= MAX_LEVEL_ASC3) {
+    return LATE_GAME_INVOCATIONS[category]?.[targetLevel] || 0;
+  }
+  return STANDARD_INVOCATIONS_PER_LEVEL[category] || 0;
+}
+
+/**
+ * Retourne le coût en ressources pour passer au niveau cible (targetLevel) dans l'ascension donnée,
+ * en appliquant la réduction de technologie (0 à 5)
+ */
+export function getLevelCost(category, ascension, targetLevel, techLevel) {
+  const costs = TECH_COSTS_100[category];
+  if (!costs) return 0;
+  const techClamped = Math.max(0, Math.min(5, Number(techLevel) || 0));
+
+  if (Number(ascension) === MAX_ASCENSION && targetLevel >= 101 && targetLevel <= MAX_LEVEL_ASC3) {
+    const invocs = getInvocationsForLevel(category, targetLevel);
+    const resPerInvoc = RESOURCE_PER_INVOCATION[category] || 0;
+    const refTech = LATE_GAME_REF_TECH[category] ?? 5;
+    const techRatio = costs[techClamped] / costs[refTech];
+    return invocs * resPerInvoc * techRatio;
+  }
+
+  return costs[techClamped] / 100;
+}
+
 /**
  * Simule la dépense des ressources avec le niveau de tech actuel
  * @param {string} category 'skills' | 'eggs' | 'mount' | 'forge'
  * @param {number} ascension 0 à 3
- * @param {number} currentLevel 0 à 100 (ou 0 à 35 pour la forge)
+ * @param {number} currentLevel 0 à 100 (ou 0 à 150 en Asc. 3, 0 à 35 pour la forge)
  * @param {number} techLevel 0 à 5
  * @param {number} resources
- * @param {boolean} isOrdreAscension true pour limiter la simulation à un seul passage d'ascension (règle rush)
+ * @param {boolean} isOrdreAscension true pour appliquer la règle rush (seuil 30/100 sur nouvelles ascensions)
  */
 export function simulateRealProgression(category, ascension, currentLevel, techLevel, resources, isOrdreAscension = false) {
-  const asc = Math.max(0, Math.min(3, Number(ascension) || 0));
+  const asc = Math.max(0, Math.min(MAX_ASCENSION, Number(ascension) || 0));
   const res = Math.max(0, Number(resources) || 0);
 
   if (category === 'forge') {
-    const lvl = Math.max(0, Math.min(35, Number(currentLevel) || 0));
+    const lvl = Math.max(0, Math.min(MAX_LEVEL_FORGE, Number(currentLevel) || 0));
     return {
       levelsGained: 0,
-      totalAbsoluteLevels: (asc * 35) + lvl,
+      invocationsGained: 0,
+      totalAbsoluteLevels: (asc * MAX_LEVEL_FORGE) + lvl,
       finalAscension: asc,
       finalLevel: lvl,
       remainingResources: res,
-      isMaxed: (asc >= 3 && lvl >= 35)
+      isMaxed: (asc >= MAX_ASCENSION && lvl >= MAX_LEVEL_FORGE)
     };
   }
 
-  const lvl = Math.max(0, Math.min(100, Number(currentLevel) || 0));
+  const maxLvlForCurrentAsc = getMaxLevelForAscension(category, asc);
+  const lvl = Math.max(0, Math.min(maxLvlForCurrentAsc, Number(currentLevel) || 0));
 
-  // Si le joueur a déjà atteint le maximum absolu du jeu (Ascension 3, Niveau 100)
-  if (asc >= 3 && lvl >= 100) {
+  // Si le joueur a déjà atteint le maximum absolu du jeu (Ascension 3, Niveau 150)
+  if (asc >= MAX_ASCENSION && lvl >= MAX_LEVEL_ASC3) {
     return {
       levelsGained: 0,
-      totalAbsoluteLevels: 400,
-      finalAscension: 3,
-      finalLevel: 100,
+      invocationsGained: 0,
+      totalAbsoluteLevels: (MAX_ASCENSION * 100) + MAX_LEVEL_ASC3,
+      finalAscension: MAX_ASCENSION,
+      finalLevel: MAX_LEVEL_ASC3,
       remainingResources: res,
       isMaxed: true
     };
@@ -52,6 +159,7 @@ export function simulateRealProgression(category, ascension, currentLevel, techL
   if (!costs) {
     return {
       levelsGained: 0,
+      invocationsGained: 0,
       totalAbsoluteLevels: (asc * 100) + lvl,
       finalAscension: asc,
       finalLevel: lvl,
@@ -61,52 +169,44 @@ export function simulateRealProgression(category, ascension, currentLevel, techL
   }
 
   const techClamped = Math.max(0, Math.min(5, Number(techLevel) || 0));
-  const cost100 = costs[techClamped];
-  const costPerLevel = cost100 / 100;
+  const costPerLevel100 = costs[techClamped] / 100;
+  const EPS = 1e-9;
 
-  // Niveaux bruts que les ressources peuvent acheter
-  const affordableLevels = Math.floor(res / costPerLevel);
-
-  // Plafond absolu du jeu : Ascension 3, Niveau 100 (l'ascension 4 n'existe pas)
-  const levelsToGameMax = (3 - asc) * 100 + (100 - lvl);
-
+  let curAsc = asc;
+  let curLvl = lvl;
+  let remainingRes = res;
   let levelsGained = 0;
-  let finalAscension = asc;
-  let finalLevel = lvl;
+  let invocationsGained = 0;
 
   if (isOrdreAscension) {
-    // Si le joueur est déjà à l'Ascension 3, il ne peut pas monter au-delà du Niv 100 (l'Ascension 4 n'existe pas)
-    if (asc >= 3) {
-      levelsGained = Math.min(100 - lvl, affordableLevels);
-      finalAscension = 3;
-      finalLevel = lvl + levelsGained;
+    if (curAsc >= MAX_ASCENSION) {
+      // Déjà en Ascension 3 : progression jusqu'au niveau 150 sans contrainte de seuil 30/100
+      while (curLvl < MAX_LEVEL_ASC3) {
+        const nextLvl = curLvl + 1;
+        const cost = getLevelCost(category, MAX_ASCENSION, nextLvl, techClamped);
+        if (remainingRes + EPS < cost) break;
+        remainingRes -= cost;
+        curLvl = nextLvl;
+        levelsGained += 1;
+        invocationsGained += getInvocationsForLevel(category, nextLvl);
+      }
     } else {
-      // Normalisation : si le joueur a saisi lvl = 100 (ex: Asc 1 Niv 100), il est au seuil de l'ascension suivante (Asc 2 Niv 0)
-      let curAsc = asc;
-      let curLvl = lvl;
-      if (curLvl >= 100 && curAsc < 3) {
+      // Normalisation : si le joueur a saisi lvl = 100 en Asc < 3, il est au seuil de l'ascension suivante (Asc+1, Niv 0)
+      if (curLvl >= MAX_LEVEL_STANDARD && curAsc < MAX_ASCENSION) {
         curAsc += 1;
         curLvl = 0;
       }
 
-      let remainingLevels = affordableLevels;
-
       // 1. Finir l'ascension en cours si elle a déjà été entamée (curLvl > 0)
       if (curLvl > 0) {
-        const neededToFinish = 100 - curLvl;
-        if (remainingLevels <= neededToFinish) {
-          // Ne termine pas l'ascension en cours (ou arrive pile à 100)
-          levelsGained += remainingLevels;
-          curLvl += remainingLevels;
-          remainingLevels = 0;
-          if (curLvl === 100 && curAsc < 3) {
-            curAsc += 1;
-            curLvl = 0;
-          }
-        } else {
-          // Termine l'ascension en cours : on consomme neededToFinish et on passe au palier suivant
-          levelsGained += neededToFinish;
-          remainingLevels -= neededToFinish;
+        while (curLvl < MAX_LEVEL_STANDARD) {
+          if (remainingRes + EPS < costPerLevel100) break;
+          remainingRes -= costPerLevel100;
+          curLvl += 1;
+          levelsGained += 1;
+          invocationsGained += getInvocationsForLevel(category, curLvl);
+        }
+        if (curLvl >= MAX_LEVEL_STANDARD && curAsc < MAX_ASCENSION) {
           curAsc += 1;
           curLvl = 0;
         }
@@ -114,88 +214,103 @@ export function simulateRealProgression(category, ascension, currentLevel, techL
 
       // 2. Traitement des ascensions suivantes entamées à curLvl === 0 :
       // Règle Rush : chaque nouvelle ascension exige d'atteindre au MINIMUM le niveau 30/100.
-      while (remainingLevels > 0 && curAsc <= 3) {
-        if (curAsc === 3) {
-          // Arrivé à l'Ascension 3 (dernier palier du jeu)
-          if (curLvl === 0 && remainingLevels < 30) {
-            // Ne peut pas atteindre 30/100 en Ascension 3 -> arrêt à la fin de l'Ascension 2
-            break;
-          }
-          const toAdd = Math.min(100 - curLvl, remainingLevels);
-          levelsGained += toAdd;
-          curLvl += toAdd;
-          remainingLevels -= toAdd;
+      while (curAsc <= MAX_ASCENSION && curLvl === 0) {
+        if (remainingRes + EPS < 30 * costPerLevel100) {
+          // Seuil minimal 30/100 non atteint : arrêt au palier précédent
           break;
-        } else {
-          // curAsc < 3 et curLvl === 0
-          if (remainingLevels < 30) {
-            // Seuil non atteint (< 30/100) : arrêt au palier précédent
-            break;
-          } else if (remainingLevels < 100) {
-            // Seuil atteint (entre 30 et 99 niveaux) : on valide ces niveaux
-            levelsGained += remainingLevels;
-            curLvl = remainingLevels;
-            remainingLevels = 0;
-            break;
-          } else {
-            // Au moins 100 niveaux : on valide les 100 niveaux de cette ascension
-            levelsGained += 100;
-            remainingLevels -= 100;
+        }
+
+        if (curAsc < MAX_ASCENSION) {
+          while (curLvl < MAX_LEVEL_STANDARD) {
+            if (remainingRes + EPS < costPerLevel100) break;
+            remainingRes -= costPerLevel100;
+            curLvl += 1;
+            levelsGained += 1;
+            invocationsGained += getInvocationsForLevel(category, curLvl);
+          }
+          if (curLvl >= MAX_LEVEL_STANDARD) {
             curAsc += 1;
             curLvl = 0;
-            // La boucle continue pour tester l'ascension d'après
+          } else {
+            break;
           }
+        } else {
+          // curAsc === MAX_ASCENSION : progression de 1 à 150 avec coûts progressifs dès 101
+          while (curLvl < MAX_LEVEL_ASC3) {
+            const nextLvl = curLvl + 1;
+            const cost = getLevelCost(category, MAX_ASCENSION, nextLvl, techClamped);
+            if (remainingRes + EPS < cost) break;
+            remainingRes -= cost;
+            curLvl = nextLvl;
+            levelsGained += 1;
+            invocationsGained += getInvocationsForLevel(category, nextLvl);
+          }
+          break;
         }
       }
-
-      finalAscension = curAsc;
-      finalLevel = curLvl;
     }
   } else {
-    // En classement réel standard : progression libre jusqu'à Ascension 3 Niveau 100
-    levelsGained = Math.min(affordableLevels, levelsToGameMax);
-    const endAbsolute = (asc * 100) + lvl + levelsGained;
-    if (endAbsolute >= 400) {
-      finalAscension = 3;
-      finalLevel = 100;
-    } else {
-      finalAscension = Math.floor(endAbsolute / 100);
-      finalLevel = endAbsolute % 100;
+    // Classement réel standard : progression libre jusqu'à Ascension 3 Niveau 150
+    if (curAsc < MAX_ASCENSION && curLvl >= MAX_LEVEL_STANDARD) {
+      curAsc += 1;
+      curLvl = 0;
+    }
+
+    while (!(curAsc === MAX_ASCENSION && curLvl >= MAX_LEVEL_ASC3)) {
+      const nextLvl = curLvl + 1;
+      const cost = getLevelCost(category, curAsc, nextLvl, techClamped);
+      if (remainingRes + EPS < cost) break;
+
+      remainingRes -= cost;
+      curLvl = nextLvl;
+      levelsGained += 1;
+      invocationsGained += getInvocationsForLevel(category, nextLvl);
+
+      if (curAsc < MAX_ASCENSION && curLvl >= MAX_LEVEL_STANDARD) {
+        curAsc += 1;
+        curLvl = 0;
+      }
     }
   }
 
-  const totalAbsoluteLevels = (finalAscension * 100) + finalLevel;
-  const remainingResources = Math.round(res - (levelsGained * costPerLevel));
+  const totalAbsoluteLevels = (curAsc * 100) + curLvl;
+  const remainingResources = Math.max(0, Math.round(remainingRes));
 
   return {
     levelsGained,
+    invocationsGained,
     totalAbsoluteLevels,
-    finalAscension,
-    finalLevel,
+    finalAscension: curAsc,
+    finalLevel: curLvl,
     remainingResources,
-    isMaxed: (finalAscension >= 3 && finalLevel >= 100)
+    isMaxed: (curAsc >= MAX_ASCENSION && curLvl >= MAX_LEVEL_ASC3)
   };
 }
 
 /**
  * Calcule les Points de Guerre (War Points) selon les formules officielles
  */
-export function calculateWarPoints(category, levelsGained, fusions = 0) {
+export function calculateWarPoints(category, levelsGained, fusions = 0, invocationsGained = null) {
   const lvls = Math.max(0, Number(levelsGained) || 0);
   const fusionsCount = Math.max(0, Number(fusions) || 0);
+  const useExactInvocs = invocationsGained !== null && invocationsGained !== undefined;
+  const invocs = useExactInvocs ? Math.max(0, Number(invocationsGained) || 0) : null;
 
   if (category === 'skills') {
-    // Compétence : 110 compétences par niveau * 175 pts par compétence
-    return lvls * 110 * 175;
+    // Compétence : invocations franchies * 175 pts (110/niv <= 100, tableau officiel 101-150)
+    const totalInvocs = useExactInvocs ? invocs : (lvls * 110);
+    return totalInvocs * 175;
   } else if (category === 'eggs') {
-    // Œufs : (fusions * 2250) + (23 oeufs par niveau * 2250 pts)
+    // Œufs : (fusions * 2250) + (invocations franchies * 2250 pts)
     const ptsFusions = fusionsCount * 2250;
-    const ptsInvocations = lvls * 23 * 2250;
+    const totalInvocs = useExactInvocs ? invocs : (lvls * 23);
+    const ptsInvocations = totalInvocs * 2250;
     return ptsFusions + ptsInvocations;
   } else if (category === 'mount') {
-    // Monture : (fusions * 1080) + (20 montures par niveau * 1080 pts * 2)
+    // Monture : (fusions * 1080) + (invocations franchies * 1080 pts * 2)
     const ptsFusions = fusionsCount * 1080;
-    const ptsInvocations = lvls * 20 * 1080 * 2;
+    const totalInvocs = useExactInvocs ? invocs : (lvls * 20);
+    const ptsInvocations = totalInvocs * 1080 * 2;
     return ptsFusions + ptsInvocations;
   }
   return 0;
@@ -284,12 +399,32 @@ function compareAvancementBrut(a, b, category) {
 }
 
 /**
- * Vérifie si un joueur a atteint le niveau maximum absolu (Ascension 3, Niveau 100 ou 35 pour la forge)
+ * Vérifie si un joueur a atteint le palier post-ascension (Ascension 3, Niveau >= 100)
+ * Il ne peut plus passer d'ascension, mais peut continuer jusqu'au niveau 150 ou dépenser ses fusions.
+ */
+export function isPlayerPostAscension(player, category) {
+  if (!player || category === 'forge') return false;
+  let asc = 0, lvl = 0;
+  if (category === 'skills') {
+    asc = player.skills_ascension;
+    lvl = player.skills_ascension_level;
+  } else if (category === 'eggs') {
+    asc = player.eggs_ascension;
+    lvl = player.eggs_ascension_level;
+  } else if (category === 'mount') {
+    asc = player.mount_ascension;
+    lvl = player.mount_ascension_level;
+  }
+  return (Number(asc) >= MAX_ASCENSION && Number(lvl) >= MAX_LEVEL_STANDARD);
+}
+
+/**
+ * Vérifie si un joueur a atteint le niveau maximum absolu (Ascension 3, Niveau 150 ou 35 pour la forge)
  */
 export function isPlayerMaxed(player, category) {
   if (!player) return false;
   if (category === 'forge') {
-    return (Number(player.forge_ascension) >= 3 && Number(player.forge_ascension_level) >= 35);
+    return (Number(player.forge_ascension) >= MAX_ASCENSION && Number(player.forge_ascension_level) >= MAX_LEVEL_FORGE);
   }
   let asc = 0, lvl = 0;
   if (category === 'skills') {
@@ -302,7 +437,7 @@ export function isPlayerMaxed(player, category) {
     asc = player.mount_ascension;
     lvl = player.mount_ascension_level;
   }
-  return (Number(asc) >= 3 && Number(lvl) >= 100);
+  return (Number(asc) >= MAX_ASCENSION && Number(lvl) >= MAX_LEVEL_ASC3);
 }
 
 /**
@@ -334,23 +469,25 @@ export function isRushAvailable(player) {
 
 /**
  * Compare deux joueurs selon les critères d'Ordre d'ascension :
- * 1) Joueurs non-maxés d'abord, joueurs maxés (Ascension 3 Niv 100) en fin de liste
- * 2) Priorité 1 : avoir coché "Je veux faire mon ascension" dans la ressource
+ * 1) Joueurs encore éligibles (invocations ou fusions) d'abord, joueurs bloqués (Asc. 3 Niv. 150 sans fusions) en fin de liste
+ * 2) Priorité 1 : avoir coché "Je veux faire mon ascension" ET ne pas être déjà en Asc. 3 Niv. 100+
  * 3) Priorité 2 : Points de Guerre prévisionnels DESC
- * 4) Départage : Ressources résiduelles DESC, puis Technologie DESC
+ * 4) Départage : Ressources DESC, puis Technologie DESC
  */
 function compareOrdreAscension(a, b, category) {
-  const maxedA = isPlayerMaxed(a, category);
-  const maxedB = isPlayerMaxed(b, category);
+  const blockedA = a.isFullyBlocked !== undefined ? a.isFullyBlocked : isPlayerMaxed(a, category);
+  const blockedB = b.isFullyBlocked !== undefined ? b.isFullyBlocked : isPlayerMaxed(b, category);
 
-  // Si l'un des joueurs est maxé et pas l'autre, le maxé est relégué en fin de liste
-  if (maxedA !== maxedB) {
-    return maxedA ? 1 : -1;
+  // Si l'un des joueurs est complètement bloqué (150 sans fusions) et pas l'autre, le bloqué est relégué en fin de liste
+  if (blockedA !== blockedB) {
+    return blockedA ? 1 : -1;
   }
 
-  // Priorité 1 : Coche "Je veux faire mon ascension"
-  const wantA = wantsAscensionForCategory(a, category);
-  const wantB = wantsAscensionForCategory(b, category);
+  // Priorité 1 : Coche "Je veux faire mon ascension" (valable uniquement si le joueur peut encore passer une ascension)
+  const postA = a.isPostAscension !== undefined ? a.isPostAscension : isPlayerPostAscension(a, category);
+  const postB = b.isPostAscension !== undefined ? b.isPostAscension : isPlayerPostAscension(b, category);
+  const wantA = !postA && wantsAscensionForCategory(a, category);
+  const wantB = !postB && wantsAscensionForCategory(b, category);
   if (wantA !== wantB) {
     return wantB ? 1 : -1;
   }
@@ -528,14 +665,14 @@ export function getGeneralRawRanking(players, limit = 50) {
 
 /**
  * Construit la structure de l'Ordre d'Ascension avec :
- * - Les Élus (en jaune doré) : tous ceux ayant coché "Je veux faire mon ascension", classés par Points de Guerre
- * - La suite du classement (non doré) : ceux n'ayant pas coché l'ascension, classés par Points de Guerre
- * - Les joueurs au palier maximum (Ascension 3 Niv 100) en toute fin de liste
+ * - Les Élus (en jaune doré) : joueurs pouvant encore passer une ascension (< Asc. 3 Niv. 100) ayant coché "Je veux faire mon ascension"
+ * - La suite du classement (non doré) : joueurs n'ayant pas coché l'ascension + joueurs Asc. 3 Niv. 100-149 (late game) + joueurs Asc. 3 Niv. 150 ayant des fusions disponibles
+ * - Les joueurs complètement bloqués (Ascension 3 Niv. 150 sans fusions) en toute fin de liste
  */
 export function getOrdreAscensionWithElus(players, category) {
   if (category !== 'skills' && category !== 'eggs' && category !== 'mount') return { elus: [], suite: [], allSorted: [] };
 
-  // 1. Enrichir chaque joueur avec sa simulation (1 ascension max), ses points de guerre et ses drapeaux
+  // 1. Enrichir chaque joueur avec sa simulation, ses points de guerre et ses drapeaux
   const enriched = players.map(p => {
     let res = 0, asc = 0, lvl = 0, tech = 0, fusions = 0;
 
@@ -547,10 +684,12 @@ export function getOrdreAscensionWithElus(players, category) {
       res = p.mount_keys; asc = p.mount_ascension; lvl = p.mount_ascension_level; tech = p.mount_tech_level; fusions = p.mount_fusions || 0;
     }
 
-    // Simulation avec règle 1 seule ascension max pour le rush (isOrdreAscension = true)
+    // Simulation avec règle rush (seuil 30/100 sur nouvelles ascensions, libre de 100 à 150 en Asc. 3)
     const sim = simulateRealProgression(category, asc, lvl, tech, res, true);
-    const warPoints = calculateWarPoints(category, sim.levelsGained, fusions);
+    const warPoints = calculateWarPoints(category, sim.levelsGained, fusions, sim.invocationsGained);
+    const postAsc = isPlayerPostAscension(p, category);
     const maxed = isPlayerMaxed(p, category);
+    const fullyBlocked = maxed && warPoints <= 0;
     const wantAsc = wantsAscensionForCategory(p, category);
     const rushActive = isRushAvailable(p);
 
@@ -558,7 +697,9 @@ export function getOrdreAscensionWithElus(players, category) {
       ...p,
       sim,
       warPoints,
+      isPostAscension: postAsc,
       isMaxed: maxed,
+      isFullyBlocked: fullyBlocked,
       wantsAscension: wantAsc,
       isRushAvailable: rushActive,
       available_slots: Array.isArray(p.available_slots) ? p.available_slots : []
@@ -566,12 +707,12 @@ export function getOrdreAscensionWithElus(players, category) {
   });
 
   // 2. Séparer en 3 groupes :
-  // Groupe 1 : Non-maxés ET ayant coché "Je veux faire mon ascension" (Les Élus)
-  // Groupe 2 : Non-maxés ET n'ayant PAS coché l'ascension (Suite / Remplaçants)
-  // Groupe 3 : Joueurs maxés (Ascension 3, Niveau 100)
-  const elusRaw = enriched.filter(p => !p.isMaxed && p.wantsAscension);
-  const suiteRaw = enriched.filter(p => !p.isMaxed && !p.wantsAscension);
-  const maxedRaw = enriched.filter(p => p.isMaxed);
+  // Groupe 1 : Peut encore faire une ascension (!isPostAscension) ET a coché "Je veux faire mon ascension" (Les Élus)
+  // Groupe 2 : Non bloqués (!isFullyBlocked) ET (n'a PAS coché l'ascension OU est déjà en Asc. 3 Niv. 100+)
+  // Groupe 3 : Joueurs complètement bloqués (Ascension 3, Niveau 150, 0 fusion)
+  const elusRaw = enriched.filter(p => !p.isPostAscension && p.wantsAscension);
+  const suiteRaw = enriched.filter(p => !p.isFullyBlocked && (!p.wantsAscension || p.isPostAscension));
+  const maxedRaw = enriched.filter(p => p.isFullyBlocked);
 
   // Trier les Élus par Points de Guerre DESC (avec départages ressources/tech)
   elusRaw.sort((a, b) => compareOrdreAscension(a, b, category));
@@ -579,7 +720,7 @@ export function getOrdreAscensionWithElus(players, category) {
   // Trier la suite par Points de Guerre DESC (avec départages ressources/tech)
   suiteRaw.sort((a, b) => compareOrdreAscension(a, b, category));
 
-  // Trier les maxés par ressources DESC
+  // Trier les bloqués par ressources DESC
   maxedRaw.sort((a, b) => compareOrdreAscension(a, b, category));
 
   // Attribuer les rangs et priorités

@@ -44,22 +44,22 @@ CREATE TABLE IF NOT EXISTS public.fm_big6_players (
     available_slots TEXT[] DEFAULT '{}',
 
     -- Compétences (Tickets FM)
-    skills_tickets INTEGER NOT NULL DEFAULT 0 CHECK (skills_tickets >= 0 AND skills_tickets <= 500000),
+    skills_tickets INTEGER NOT NULL DEFAULT 0 CHECK (skills_tickets >= 0 AND skills_tickets <= 2000000),
     skills_ascension INTEGER NOT NULL DEFAULT 0 CHECK (skills_ascension >= 0 AND skills_ascension <= 3),
-    skills_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (skills_ascension_level >= 0 AND skills_ascension_level <= 100),
+    skills_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (skills_ascension_level >= 0 AND skills_ascension_level <= 150),
     skills_tech_level INTEGER NOT NULL DEFAULT 0 CHECK (skills_tech_level >= 0 AND skills_tech_level <= 5),
     
     -- Œufs (oeufs FM)
-    eggs_count INTEGER NOT NULL DEFAULT 0 CHECK (eggs_count >= 0 AND eggs_count <= 200000),
+    eggs_count INTEGER NOT NULL DEFAULT 0 CHECK (eggs_count >= 0 AND eggs_count <= 1500000),
     eggs_ascension INTEGER NOT NULL DEFAULT 0 CHECK (eggs_ascension >= 0 AND eggs_ascension <= 3),
-    eggs_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (eggs_ascension_level >= 0 AND eggs_ascension_level <= 100),
+    eggs_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (eggs_ascension_level >= 0 AND eggs_ascension_level <= 150),
     eggs_tech_level INTEGER NOT NULL DEFAULT 0 CHECK (eggs_tech_level >= 0 AND eggs_tech_level <= 5),
     eggs_fusions INTEGER NOT NULL DEFAULT 0 CHECK (eggs_fusions >= 0 AND eggs_fusions <= 10000),
     
     -- Monture (Monture FM)
-    mount_keys INTEGER NOT NULL DEFAULT 0 CHECK (mount_keys >= 0 AND mount_keys <= 200000),
+    mount_keys INTEGER NOT NULL DEFAULT 0 CHECK (mount_keys >= 0 AND mount_keys <= 1000000),
     mount_ascension INTEGER NOT NULL DEFAULT 0 CHECK (mount_ascension >= 0 AND mount_ascension <= 3),
-    mount_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (mount_ascension_level >= 0 AND mount_ascension_level <= 100),
+    mount_ascension_level INTEGER NOT NULL DEFAULT 0 CHECK (mount_ascension_level >= 0 AND mount_ascension_level <= 150),
     mount_tech_level INTEGER NOT NULL DEFAULT 0 CHECK (mount_tech_level >= 0 AND mount_tech_level <= 5),
     mount_fusions INTEGER NOT NULL DEFAULT 0 CHECK (mount_fusions >= 0 AND mount_fusions <= 2000),
     
